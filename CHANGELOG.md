@@ -28,6 +28,11 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   this the token request went to `/automate/cwa/api/v1/apitoken` and failed
   with 405, which read like a credential problem. A 405 from the token endpoint
   now says the URL is wrong.
+- Optional bundle settings the user never filled in are treated as unset.
+  Claude Desktop passes such fields through as the literal text
+  `${user_config.automate_username}`, which `loadConfig` used to accept as a
+  real value: Automate then authenticated with that string as the username and
+  Control tried to fetch `${user_config.screenconnect_url}/...`.
 
 ### Changed
 - `manifest.json` lists tools by their Title Case title, the name Claude Desktop

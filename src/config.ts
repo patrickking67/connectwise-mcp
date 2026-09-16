@@ -49,7 +49,21 @@ export function normalizePsaSite(input: string): string {
   return host.toLowerCase();
 }
 
-export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
+/**
+ * MCP hosts pass optional user_config fields the user left blank through as the
+ * literal string "${user_config.whatever}". Treat any such template as unset so
+ * it never becomes a credential, a URL or a version pin.
+ */
+function withoutPlaceholders(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const clean: NodeJS.ProcessEnv = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (value !== undefined && !value.includes("${")) clean[key] = value;
+  }
+  return clean;
+}
+
+export function loadConfig(rawEnv: NodeJS.ProcessEnv = process.env): AppConfig {
+  const env = withoutPlaceholders(rawEnv);
   const config: AppConfig = {
     port: Number(env.PORT) || 8080,
     authToken: env.MCP_AUTH_TOKEN?.trim() || undefined,

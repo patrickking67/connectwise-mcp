@@ -96,4 +96,34 @@ describe("loadConfig", () => {
       password: "pw",
     });
   });
+
+  it("treats a host's unexpanded ${user_config.x} placeholder as unset", () => {
+    // Claude Desktop substitutes optional user_config fields the user never
+    // filled in as the literal template text, not as an empty string.
+    const config = loadConfig({
+      ...PSA_ENV,
+      CW_PSA_VERSION: "${user_config.psa_version}",
+      CW_AUTOMATE_URL: "${user_config.automate_url}",
+      CW_AUTOMATE_USERNAME: "${user_config.automate_username}",
+      CW_AUTOMATE_PASSWORD: "${user_config.automate_password}",
+      CW_AUTOMATE_CLIENT_ID: "${user_config.automate_client_id}",
+      CW_SCREENCONNECT_URL: "${user_config.screenconnect_url}",
+      CW_SCREENCONNECT_USERNAME: "${user_config.screenconnect_username}",
+      CW_SCREENCONNECT_PASSWORD: "${user_config.screenconnect_password}",
+    });
+    expect(config.psa?.version).toBeUndefined();
+    expect(config.automate).toBeUndefined();
+    expect(config.screenconnect).toBeUndefined();
+  });
+
+  it("does not register Automate when only some of its fields are placeholders", () => {
+    const config = loadConfig({
+      ...PSA_ENV,
+      CW_AUTOMATE_URL: "https://rmm.example.com",
+      CW_AUTOMATE_USERNAME: "${user_config.automate_username}",
+      CW_AUTOMATE_PASSWORD: "pw",
+      CW_AUTOMATE_CLIENT_ID: "cid",
+    });
+    expect(config.automate).toBeUndefined();
+  });
 });
