@@ -9,7 +9,7 @@ import { registerScreenConnectTools } from "./tools/screenconnect.js";
 import { registerTicketCard } from "./ui/ticket-card.js";
 
 export const SERVER_NAME = "connectwise-manage-mcp";
-export const SERVER_VERSION = "0.3.0";
+export const SERVER_VERSION = "0.3.1";
 
 const INSTRUCTIONS = `ConnectWise Manage MCP server. Every tool is named cw_*: ConnectWise PSA (Manage)
 tools are cw_*, ConnectWise Automate (RMM) tools are cw_automate_*, and ConnectWise Control

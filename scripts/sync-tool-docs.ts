@@ -113,7 +113,7 @@ varies. Nothing depends on it: the same tool result carries the full JSON in \`c
 
 function manifestTools(): Array<{ name: string; description: string }> {
   return TOOL_CATALOG.map((tool) => ({
-    name: tool.name,
+    name: tool.title,
     description: tool.category === "write" ? `${tool.summary} — writes to ConnectWise` : tool.summary,
   }));
 }

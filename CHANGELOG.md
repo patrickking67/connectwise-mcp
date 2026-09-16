@@ -5,6 +5,24 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-09-16
+
+### Added
+- ConnectWise Control (ScreenConnect) can be configured from the Claude Desktop
+  bundle: `screenconnect_url`, `screenconnect_username` and
+  `screenconnect_password` in `user_config`, mapped to `CW_SCREENCONNECT_*`.
+  Before this the Control tools could only register on a shell-configured
+  install.
+
+### Changed
+- `manifest.json` lists tools by their Title Case title, the name Claude Desktop
+  shows, and `npm run tools:sync` writes it that way.
+- `npm run mcpb:pack` packs `dist/connectwise.mcpb` from a clean staging
+  directory with production dependencies only.
+- The stdio entry point exits with a clear message when PSA is not configured
+  instead of registering no tools.
+- Bundle name is `connectwise`, author DivergeIT, with a 512 px icon.
+
 ## [0.3.0] - 2026-08-25
 
 ### Changed — breaking

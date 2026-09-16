@@ -1,13 +1,13 @@
 {
   "$schema": "https://raw.githubusercontent.com/anthropics/mcpb/main/schemas/mcpb-manifest-latest.schema.json",
   "manifest_version": "0.4",
-  "name": "connectwise-manage-mcp",
-  "display_name": "ConnectWise Manage",
-  "version": "0.3.0",
+  "name": "connectwise",
+  "display_name": "ConnectWise",
+  "version": "0.3.1",
   "description": "ConnectWise Manage (PSA), with optional Automate and Control, in one MCP server. Read, write, and an interactive ticket card.",
   "long_description": "One connector for the ConnectWise stack. PSA (Manage) is always available; Automate and Control (ScreenConnect) register themselves only when their credentials are configured, so an unconfigured integration contributes no tools rather than tools that fail.\n\nEvery tool is named cw_* and shows a Title Case name in the client. Tools come in three kinds and say which they are: read-only tools carry readOnlyHint and can run without a prompt; write tools declare themselves as writes; cw_get_ticket is interactive, rendering an MCP Apps card with an internal-note box on hosts that support it and plain JSON everywhere else.\n\nPSA covers tickets, companies, contacts, configurations, time and expense entries, projects, agreements, invoices, opportunities, members, activities and schedule entries, plus board metadata and read/write escape hatches for endpoints without a dedicated tool.\n\nUNLIKE THE OTHER CONNECTORS IN THIS FLEET, THIS ONE WRITES. It can create and update tickets, add ticket notes, and create time and expense entries. Three guardrails are not optional and must not be weakened: the raw read tools cannot issue anything but GET, cw_api_write refuses DELETE without confirm: true, and the Automate and Control write tools refuse every call without it.\n\nThis bundle is the LOCAL install: it runs on your own machine and holds the ConnectWise credentials there. The same tools are also served by a remote deployment on Azure Container Apps for clients that cannot launch a local process — see the repository documentation.",
   "author": {
-    "name": "Patrick King"
+    "name": "DivergeIT"
   },
   "repository": {
     "type": "git",
@@ -32,157 +32,160 @@
         "CW_AUTOMATE_URL": "${user_config.automate_url}",
         "CW_AUTOMATE_USERNAME": "${user_config.automate_username}",
         "CW_AUTOMATE_PASSWORD": "${user_config.automate_password}",
-        "CW_AUTOMATE_CLIENT_ID": "${user_config.automate_client_id}"
+        "CW_AUTOMATE_CLIENT_ID": "${user_config.automate_client_id}",
+        "CW_SCREENCONNECT_URL": "${user_config.screenconnect_url}",
+        "CW_SCREENCONNECT_USERNAME": "${user_config.screenconnect_username}",
+        "CW_SCREENCONNECT_PASSWORD": "${user_config.screenconnect_password}"
       }
     }
   },
   "tools": [
     {
-      "name": "cw_search_tickets",
+      "name": "Search Tickets",
       "description": "Search service tickets"
     },
     {
-      "name": "cw_search_companies",
+      "name": "Search Companies",
       "description": "Search companies (clients and vendors)"
     },
     {
-      "name": "cw_search_contacts",
+      "name": "Search Contacts",
       "description": "Search contacts"
     },
     {
-      "name": "cw_search_configurations",
+      "name": "Search Configurations",
       "description": "Search configurations — the managed assets tracked per company"
     },
     {
-      "name": "cw_search_time_entries",
+      "name": "Search Time Entries",
       "description": "Search time entries"
     },
     {
-      "name": "cw_search_projects",
+      "name": "Search Projects",
       "description": "Search projects"
     },
     {
-      "name": "cw_search_project_tickets",
+      "name": "Search Project Tickets",
       "description": "Search project tickets — work items inside projects"
     },
     {
-      "name": "cw_search_purchase_orders",
+      "name": "Search Purchase Orders",
       "description": "Search procurement purchase orders"
     },
     {
-      "name": "cw_search_expenses",
+      "name": "Search Expenses",
       "description": "Search expense entries"
     },
     {
-      "name": "cw_search_opportunities",
+      "name": "Search Opportunities",
       "description": "Search sales opportunities"
     },
     {
-      "name": "cw_search_agreements",
+      "name": "Search Agreements",
       "description": "Search agreements — the managed service contracts"
     },
     {
-      "name": "cw_search_invoices",
+      "name": "Search Invoices",
       "description": "Search invoices"
     },
     {
-      "name": "cw_search_members",
+      "name": "Search Members",
       "description": "Search members — the internal users and technicians"
     },
     {
-      "name": "cw_search_activities",
+      "name": "Search Activities",
       "description": "Search sales activities — calls, meetings and tasks"
     },
     {
-      "name": "cw_search_schedule_entries",
+      "name": "Search Schedule Entries",
       "description": "Search schedule entries — the dispatch calendar"
     },
     {
-      "name": "cw_system_info",
+      "name": "PSA System Info",
       "description": "Read instance version and cloud/on-prem status — the cheap credentials check"
     },
     {
-      "name": "cw_get_ticket",
+      "name": "Get Ticket",
       "description": "Open one ticket as an interactive card, with its notes"
     },
     {
-      "name": "cw_get_ticket_notes",
+      "name": "Get Ticket Notes",
       "description": "Page through every note on a ticket"
     },
     {
-      "name": "cw_create_ticket",
+      "name": "Create Ticket",
       "description": "Create a service ticket — writes to ConnectWise"
     },
     {
-      "name": "cw_update_ticket",
+      "name": "Update Ticket",
       "description": "Update fields on a service ticket — writes to ConnectWise"
     },
     {
-      "name": "cw_add_ticket_note",
+      "name": "Add Ticket Note",
       "description": "Add a discussion, internal or resolution note to a ticket — writes to ConnectWise"
     },
     {
-      "name": "cw_get_company",
+      "name": "Get Company",
       "description": "Get one company by id or identifier"
     },
     {
-      "name": "cw_create_time_entry",
+      "name": "Create Time Entry",
       "description": "Log time against a ticket, project ticket, activity or charge code — writes to ConnectWise"
     },
     {
-      "name": "cw_create_expense",
+      "name": "Create Expense",
       "description": "Log an expense against a ticket, project ticket, activity or charge code — writes to ConnectWise"
     },
     {
-      "name": "cw_list_boards",
+      "name": "List Boards",
       "description": "List service boards"
     },
     {
-      "name": "cw_get_board_info",
+      "name": "Get Board Info",
       "description": "List the statuses, types and subtypes valid on one board"
     },
     {
-      "name": "cw_get_agreement_additions",
+      "name": "Get Agreement Additions",
       "description": "List the billed line items on one agreement"
     },
     {
-      "name": "cw_get_ticket_tasks",
+      "name": "Get Ticket Tasks",
       "description": "List the checklist tasks on a ticket"
     },
     {
-      "name": "cw_api_request",
+      "name": "PSA API Request",
       "description": "GET any PSA endpoint that has no dedicated tool"
     },
     {
-      "name": "cw_api_write",
+      "name": "PSA API Write",
       "description": "POST, PUT, PATCH or DELETE any PSA endpoint, guarded and confirmed on every call — writes to ConnectWise"
     },
     {
-      "name": "cw_automate_search_computers",
+      "name": "Search Automate Computers",
       "description": "Search Automate agents (computers)"
     },
     {
-      "name": "cw_automate_get_computer",
+      "name": "Get Automate Computer",
       "description": "Get one Automate agent in full detail"
     },
     {
-      "name": "cw_automate_list_clients",
+      "name": "List Automate Clients",
       "description": "List Automate clients (companies)"
     },
     {
-      "name": "cw_automate_api_request",
+      "name": "Automate API Request",
       "description": "GET any Automate endpoint that has no dedicated tool"
     },
     {
-      "name": "cw_automate_api_write",
+      "name": "Automate API Write",
       "description": "POST, PUT, PATCH or DELETE an Automate endpoint, acting on live RMM agents — writes to ConnectWise"
     },
     {
-      "name": "cw_control_list_sessions",
+      "name": "List Control Sessions",
       "description": "List ConnectWise Control host sessions (beta)"
     },
     {
-      "name": "cw_control_api_request",
+      "name": "Control API Request",
       "description": "Call a ConnectWise Control endpoint; POST needs confirm: true (beta) — writes to ConnectWise"
     }
   ],
@@ -266,6 +269,32 @@
       "required": false,
       "sensitive": true,
       "description": "Automate developer clientId GUID, sent with every Automate request."
+    },
+    "screenconnect_url": {
+      "type": "string",
+      "title": "Control (ScreenConnect) URL (optional)",
+      "description": "e.g. https://control.example.com. Leave blank to register no Control tools.",
+      "required": false
+    },
+    "screenconnect_username": {
+      "type": "string",
+      "title": "Control username (optional)",
+      "required": false,
+      "description": "Control account username. Only used when the Control URL is set."
+    },
+    "screenconnect_password": {
+      "type": "string",
+      "title": "Control password (optional)",
+      "required": false,
+      "sensitive": true,
+      "description": "Control account password. Supply it from your secret manager."
     }
-  }
+  },
+  "icon": "assets/connectwise-512.png",
+  "icons": [
+    {
+      "src": "assets/connectwise-512.png",
+      "size": "512x512"
+    }
+  ]
 }
