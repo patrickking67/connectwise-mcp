@@ -41,7 +41,7 @@ ConnectWise Manage MCP Server: ConnectWise PSA (Manage) plus optional Automate (
 - `npm run build` — tsc to `dist/`
 - `npm test` — vitest run
 - `npm run typecheck` — tsc over src + test (tsconfig.test.json)
-- `npm run mcpb:validate` / `npm run mcpb:pack` — check and build the MCPB bundle
+- `npm run mcpb:pack` — build the three per-product bundles (`dist/connectwise-{psa,automate,control}.mcpb`) from `manifests/`; `npm run mcpb:pack:suite` builds the all-in-one bundle from the root `manifest.json`; `npm run mcpb:validate` checks the root manifest
 - `npm run start:remote` — run the HTTP entry from `dist/`
 - `npm run docker:build` — build the remote transport's image
 - `npm run tools:sync` / `npm run tools:check` — regenerate the tool docs from the catalog, or fail on drift (CI runs the check)

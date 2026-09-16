@@ -151,14 +151,14 @@ npx @modelcontextprotocol/inspector
 # Streamable HTTP -> http://localhost:8080/mcp  (Authorization: Bearer <MCP_AUTH_TOKEN>)
 ```
 
-## Install locally (MCPB bundle)
+## Install locally (MCPB bundles)
 
 ```bash
 npm ci
-npm run mcpb:pack     # produces connectwise-manage-mcp.mcpb
+npm run mcpb:pack     # dist/connectwise-psa.mcpb, connectwise-automate.mcpb, connectwise-control.mcpb
 ```
 
-Install it through **Settings → Extensions → Advanced settings** in Claude for macOS or Windows. The installer prompts for the PSA credentials, and for the Automate ones if you want that module.
+One bundle per product, each with its own icon and asking only for that product's credentials: **ConnectWise PSA** (30 tools), **ConnectWise Automate** (5) and **ConnectWise Control** (2). Install the ones you use through **Settings → Extensions → Advanced settings** in Claude for macOS or Windows. All three run the same server; the manifests under `manifests/` are generated from the tool catalog by `npm run tools:sync`, and `npm run mcpb:pack:suite` builds the all-in-one `dist/connectwise.mcpb` from the root manifest instead. Bundles are packed from a clean staging directory with production dependencies only.
 
 For Claude Code, point at the stdio entry directly:
 

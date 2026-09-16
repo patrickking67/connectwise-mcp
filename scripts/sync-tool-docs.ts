@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 /**
  * The tool catalog is the source of truth for what this server exposes. This writes
- * the three places that repeat it — docs/TOOLS.md, the README table, and the MCPB
- * manifest's tool list — so they cannot drift from the code.
+ * the places that repeat it — docs/TOOLS.md, the README table, the MCPB manifest's
+ * tool list, and the three per-product manifests under manifests/ — so they cannot
+ * drift from the code.
+ *
+ * The per-product manifests are derived from the root manifest.json: same author,
+ * repository, version and compatibility, but one product's name, icon, config and
+ * tools. Each installs as its own bundle in Claude Desktop, running the same
+ * server with only that product configured.
  *
  *   npm run tools:sync    rewrite them
  *   npm run tools:check   fail if they are stale (CI)
@@ -111,11 +117,106 @@ MCP Apps is an optional, negotiated extension (\`io.modelcontextprotocol/ui\`), 
 varies. Nothing depends on it: the same tool result carries the full JSON in \`content\`.
 `;
 
-function manifestTools(): Array<{ name: string; description: string }> {
-  return TOOL_CATALOG.map((tool) => ({
+function manifestTools(surface?: ToolSurface): Array<{ name: string; description: string }> {
+  return TOOL_CATALOG.filter((tool) => surface === undefined || tool.surface === surface).map((tool) => ({
     name: tool.title,
     description: tool.category === "write" ? `${tool.summary} — writes to ConnectWise` : tool.summary,
   }));
+}
+
+/** What distinguishes each product bundle from the all-in-one root manifest. */
+const PRODUCT_BUNDLES: Array<{
+  surface: ToolSurface;
+  name: string;
+  display_name: string;
+  icon: string;
+  keywords: string[];
+  description: string;
+  long_description: string;
+  /** user_config keys this bundle keeps; every one becomes required. */
+  config: string[];
+}> = [
+  {
+    surface: "psa",
+    name: "connectwise-psa",
+    display_name: "ConnectWise PSA",
+    icon: "assets/connectwise-psa-512.png",
+    keywords: ["connectwise", "psa", "manage", "msp", "mcp"],
+    description: "ConnectWise PSA (Manage): tickets, companies, contacts, time, expenses, projects, finance and sales. Read, write, and an interactive ticket card.",
+    long_description:
+      "ConnectWise PSA (Manage) as a local MCP server. Tickets, companies, contacts, configurations, time and expense entries, projects, agreements, invoices, opportunities, members, activities and schedule entries, plus board metadata and read/write escape hatches (cw_api_request, cw_api_write) for the rest of the 1,800+ endpoint REST surface.\n\nEvery tool is named cw_* and shows a Title Case name in the client. Read-only tools carry readOnlyHint and can run without a prompt; write tools declare themselves as writes; cw_get_ticket renders an MCP Apps card with an internal-note box on hosts that support it and plain JSON everywhere else.\n\nTHIS CONNECTOR WRITES. It can create and update tickets, add ticket notes, and create time and expense entries. The raw read tool cannot issue anything but GET, and cw_api_write refuses DELETE without confirm: true.\n\nThis bundle runs on your own machine and holds the ConnectWise credentials there. Automate and Control ship as separate bundles from the same repository.",
+    config: ["psa_site", "psa_company_id", "psa_public_key", "psa_private_key", "psa_client_id"],
+  },
+  {
+    surface: "automate",
+    name: "connectwise-automate",
+    display_name: "ConnectWise Automate",
+    icon: "assets/connectwise-automate-512.png",
+    keywords: ["connectwise", "automate", "rmm", "msp", "mcp"],
+    description: "ConnectWise Automate (RMM): computers, clients, and read/write escape hatches to the Automate REST API.",
+    long_description:
+      "ConnectWise Automate (RMM) as a local MCP server. Search and read computers, list clients, and reach any other Automate endpoint through cw_automate_api_request (GET only) and cw_automate_api_write.\n\nEvery tool is named cw_automate_* and shows a Title Case name in the client. Read-only tools carry readOnlyHint; the write escape hatch refuses every call without confirm: true.\n\nThis bundle runs on your own machine and holds the Automate credentials there. PSA and Control ship as separate bundles from the same repository.",
+    config: ["automate_url", "automate_username", "automate_password", "automate_client_id"],
+  },
+  {
+    surface: "control",
+    name: "connectwise-control",
+    display_name: "ConnectWise Control",
+    icon: "assets/connectwise-control-512.png",
+    keywords: ["connectwise", "control", "screenconnect", "msp", "mcp"],
+    description: "ConnectWise Control (ScreenConnect): sessions and a read-only escape hatch to the Control API. Beta.",
+    long_description:
+      "ConnectWise Control (ScreenConnect) as a local MCP server, in beta. List sessions and reach other Control endpoints through cw_control_api_request (GET only).\n\nEvery tool is named cw_control_* and shows a Title Case name in the client. Both tools are read-only and carry readOnlyHint.\n\nThis bundle runs on your own machine and holds the Control credentials there. PSA and Automate ship as separate bundles from the same repository.",
+    config: ["screenconnect_url", "screenconnect_username", "screenconnect_password"],
+  },
+];
+
+type Json = Record<string, unknown>;
+
+/** One product's manifest, derived from the root manifest plus its PRODUCT_BUNDLES entry. */
+function productManifest(root: Json, bundle: (typeof PRODUCT_BUNDLES)[number]): Json {
+  const rootConfig = root.user_config as Record<string, Json>;
+  const rootServer = root.server as Json;
+  const rootEnv = (rootServer.mcp_config as Json).env as Record<string, string>;
+  const userConfig: Record<string, Json> = {};
+  for (const key of bundle.config) {
+    const field = { ...rootConfig[key], required: true };
+    // In its own bundle nothing about a product is optional, so the root
+    // manifest's "leave blank" and "only used when" guidance does not apply.
+    field.title = String(field.title).replace(/ \(optional\)$/, "");
+    field.description = String(field.description ?? "")
+      .replace(/\s*Leave blank to register no \w+ tools\./, "")
+      .replace(/\s*Only used when the \w+ URL is set\./, "")
+      .trim();
+    userConfig[key] = field;
+  }
+  const env: Record<string, string> = {};
+  for (const [name, value] of Object.entries(rootEnv)) {
+    const key = /\$\{user_config\.([^}]+)\}/.exec(value)?.[1];
+    if (key !== undefined && bundle.config.includes(key)) env[name] = value;
+  }
+  return {
+    $schema: root.$schema,
+    manifest_version: root.manifest_version,
+    name: bundle.name,
+    display_name: bundle.display_name,
+    version: root.version,
+    description: bundle.description,
+    long_description: bundle.long_description,
+    author: root.author,
+    repository: root.repository,
+    documentation: root.documentation,
+    support: root.support,
+    tools_generated: false,
+    keywords: bundle.keywords,
+    license: root.license,
+    compatibility: root.compatibility,
+    icon: bundle.icon,
+    icons: [{ src: bundle.icon, size: "512x512" }],
+    server: { ...rootServer, mcp_config: { ...(rootServer.mcp_config as Json), env } },
+    tools: manifestTools(bundle.surface),
+    user_config: userConfig,
+  };
 }
 
 interface Target {
@@ -137,6 +238,10 @@ function targets(): Target[] {
       next: replaceBlock(readFileSync(readmePath, "utf8"), "TOOLS", GENERATED_BLOCK),
     },
     { path: manifestPath, next: `${JSON.stringify(manifest, null, 2)}\n` },
+    ...PRODUCT_BUNDLES.map((bundle) => ({
+      path: join(ROOT, "manifests", `${bundle.name}.json`),
+      next: `${JSON.stringify(productManifest(manifest, bundle), null, 2)}\n`,
+    })),
   ];
 }
 

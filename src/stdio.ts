@@ -19,14 +19,15 @@ process.on("unhandledRejection", (err) => {
 
 const config = loadConfig();
 
-// Without PSA there is nothing to register, and an McpServer with no tools
-// answers tools/list with "Method not found" — the host then shows a healthy
-// connection that contributes nothing. Fail loudly instead.
-if (!config.psa) {
+// With no product configured there is nothing to register, and an McpServer
+// with no tools answers tools/list with "Method not found" — the host then
+// shows a healthy connection that contributes nothing. Fail loudly instead.
+// Any one product is enough: the per-product bundles configure exactly one.
+if (!config.psa && !config.automate && !config.screenconnect) {
   console.error(
-    `${SERVER_NAME}: ConnectWise PSA is not configured, so no tools would be registered. ` +
-      `Set CW_PSA_SITE, CW_PSA_COMPANY_ID, CW_PSA_PUBLIC_KEY, CW_PSA_PRIVATE_KEY and ` +
-      `CW_PSA_CLIENT_ID. In Claude Desktop these come from Settings > Extensions > ConnectWise.`,
+    `${SERVER_NAME}: no ConnectWise product is configured, so no tools would be registered. ` +
+      `Set CW_PSA_* for PSA (Manage), CW_AUTOMATE_* for Automate, or CW_SCREENCONNECT_* for ` +
+      `Control. In Claude Desktop these come from Settings > Extensions.`,
   );
   process.exit(1);
 }
@@ -36,5 +37,5 @@ const transport = new StdioServerTransport();
 await server.connect(transport);
 console.error(
   `${SERVER_NAME} v${SERVER_VERSION} running on stdio ` +
-    `(psa=yes automate=${config.automate ? "yes" : "no"} control=${config.screenconnect ? "yes" : "no"})`,
+    `(psa=${config.psa ? "yes" : "no"} automate=${config.automate ? "yes" : "no"} control=${config.screenconnect ? "yes" : "no"})`,
 );

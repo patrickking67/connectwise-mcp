@@ -8,6 +8,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [0.3.1] - 2026-09-16
 
 ### Added
+- One bundle per product. `npm run mcpb:pack` builds `connectwise-psa.mcpb`,
+  `connectwise-automate.mcpb` and `connectwise-control.mcpb` from the manifests
+  under `manifests/`, each with its own product icon, only that product's tools,
+  and only that product's credentials, all required. The manifests are generated
+  from the tool catalog by `npm run tools:sync`. The all-in-one bundle remains
+  available as `npm run mcpb:pack:suite`.
+- The stdio entry starts with any one product configured; it no longer insists
+  on PSA, which the Automate and Control bundles do not have.
 - ConnectWise Control (ScreenConnect) can be configured from the Claude Desktop
   bundle: `screenconnect_url`, `screenconnect_username` and
   `screenconnect_password` in `user_config`, mapped to `CW_SCREENCONNECT_*`.

@@ -1,0 +1,90 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/mcpb/main/schemas/mcpb-manifest-latest.schema.json",
+  "manifest_version": "0.4",
+  "name": "connectwise-control",
+  "display_name": "ConnectWise Control",
+  "version": "0.3.1",
+  "description": "ConnectWise Control (ScreenConnect): sessions and a read-only escape hatch to the Control API. Beta.",
+  "long_description": "ConnectWise Control (ScreenConnect) as a local MCP server, in beta. List sessions and reach other Control endpoints through cw_control_api_request (GET only).\n\nEvery tool is named cw_control_* and shows a Title Case name in the client. Both tools are read-only and carry readOnlyHint.\n\nThis bundle runs on your own machine and holds the Control credentials there. PSA and Automate ship as separate bundles from the same repository.",
+  "author": {
+    "name": "DivergeIT"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/patrickking67/connectwise-mcp.git"
+  },
+  "documentation": "https://github.com/patrickking67/connectwise-mcp/blob/main/README.md",
+  "support": "https://github.com/patrickking67/connectwise-mcp/issues",
+  "tools_generated": false,
+  "keywords": [
+    "connectwise",
+    "control",
+    "screenconnect",
+    "msp",
+    "mcp"
+  ],
+  "license": "MIT",
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "node": ">=20"
+    }
+  },
+  "icon": "assets/connectwise-control-512.png",
+  "icons": [
+    {
+      "src": "assets/connectwise-control-512.png",
+      "size": "512x512"
+    }
+  ],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/stdio.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/dist/stdio.js"
+      ],
+      "env": {
+        "CW_SCREENCONNECT_URL": "${user_config.screenconnect_url}",
+        "CW_SCREENCONNECT_USERNAME": "${user_config.screenconnect_username}",
+        "CW_SCREENCONNECT_PASSWORD": "${user_config.screenconnect_password}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "List Control Sessions",
+      "description": "List ConnectWise Control host sessions (beta)"
+    },
+    {
+      "name": "Control API Request",
+      "description": "Call a ConnectWise Control endpoint; POST needs confirm: true (beta) — writes to ConnectWise"
+    }
+  ],
+  "user_config": {
+    "screenconnect_url": {
+      "type": "string",
+      "title": "Control (ScreenConnect) URL",
+      "description": "e.g. https://control.example.com.",
+      "required": true
+    },
+    "screenconnect_username": {
+      "type": "string",
+      "title": "Control username",
+      "required": true,
+      "description": "Control account username."
+    },
+    "screenconnect_password": {
+      "type": "string",
+      "title": "Control password",
+      "required": true,
+      "sensitive": true,
+      "description": "Control account password. Supply it from your secret manager."
+    }
+  }
+}
