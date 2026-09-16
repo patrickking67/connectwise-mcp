@@ -98,7 +98,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   };
   if (Object.values(auto).every((v) => v?.trim())) {
     config.automate = {
-      baseUrl: auto.baseUrl!.trim().replace(/\/+$/, ""),
+      // The browser address of an Automate server is https://host/automate/ and
+      // that is what gets pasted; the REST API is at https://host/cwa/api/v1.
+      // Reduce either form, or the API path itself, to the server root.
+      baseUrl: auto
+        .baseUrl!.trim()
+        .replace(/\/+$/, "")
+        .replace(/\/cwa\/api\/v1$/i, "")
+        .replace(/\/automate$/i, ""),
       username: auto.username!.trim(),
       password: auto.password!.trim(),
       clientId: auto.clientId!.trim(),

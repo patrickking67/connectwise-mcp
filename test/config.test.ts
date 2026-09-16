@@ -66,6 +66,22 @@ describe("loadConfig", () => {
     expect(config.automate?.baseUrl).toBe("https://automate.example.com");
   });
 
+  it("strips the web UI path from an Automate URL, since the API lives at the server root", () => {
+    // The browser address of an Automate server is https://host/automate/, and
+    // that is what people paste. The REST API is at https://host/cwa/api/v1;
+    // keeping /automate in the base yields a 405 from the token endpoint.
+    for (const url of ["https://rmm.example.com/automate", "https://rmm.example.com/Automate/", "https://rmm.example.com/automate/cwa/api/v1"]) {
+      const config = loadConfig({
+        ...PSA_ENV,
+        CW_AUTOMATE_URL: url,
+        CW_AUTOMATE_USERNAME: "user",
+        CW_AUTOMATE_PASSWORD: "pass",
+        CW_AUTOMATE_CLIENT_ID: "guid",
+      });
+      expect(config.automate?.baseUrl, url).toBe("https://rmm.example.com");
+    }
+  });
+
   it("enables screenconnect only when all three vars are present", () => {
     expect(loadConfig(PSA_ENV).screenconnect).toBeUndefined();
     const config = loadConfig({

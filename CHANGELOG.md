@@ -22,6 +22,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   Before this the Control tools could only register on a shell-configured
   install.
 
+### Fixed
+- An Automate URL pasted from the browser (`https://host/automate/`) or given as
+  the API path (`https://host/cwa/api/v1`) is reduced to the server root. Before
+  this the token request went to `/automate/cwa/api/v1/apitoken` and failed
+  with 405, which read like a credential problem. A 405 from the token endpoint
+  now says the URL is wrong.
+
 ### Changed
 - `manifest.json` lists tools by their Title Case title, the name Claude Desktop
   shows, and `npm run tools:sync` writes it that way.

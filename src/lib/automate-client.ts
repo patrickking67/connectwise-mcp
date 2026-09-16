@@ -38,8 +38,14 @@ export class AutomateClient {
       body: JSON.stringify({ UserName: this.cfg.username, Password: this.cfg.password }),
     });
     if (!response.ok) {
+      // 405 from the token endpoint means the path is wrong, not the credentials:
+      // the base URL is pointing somewhere other than the Automate server root.
+      const hint =
+        response.status === 405
+          ? ` — the token endpoint did not accept POST at ${this.apiBase}/apitoken, so CW_AUTOMATE_URL is not the Automate server root; use https://<host> with no path`
+          : "";
       throw new CwApiError(
-        `Automate authentication failed (${response.status} ${response.statusText})`,
+        `Automate authentication failed (${response.status} ${response.statusText})${hint}`,
         response.status,
       );
     }
