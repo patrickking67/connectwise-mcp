@@ -1,6 +1,7 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { loadConfig } from "./config.js";
-import { createServer, SERVER_NAME, SERVER_VERSION } from "./server.js";
+import { loadConfig, type AppConfig } from "./config.js";
+import { createServer } from "./server.js";
+import { SERVER_NAME, SERVER_VERSION } from "./version.js";
 
 // Local stdio entry point for Claude Code / Claude Desktop:
 //   claude mcp add connectwise -e CW_PSA_SITE=... -- node dist/stdio.js
@@ -17,25 +18,35 @@ process.on("unhandledRejection", (err) => {
   process.exit(1);
 });
 
-const config = loadConfig();
-
-// With no product configured there is nothing to register, and an McpServer
-// with no tools answers tools/list with "Method not found" — the host then
-// shows a healthy connection that contributes nothing. Fail loudly instead.
-// Any one product is enough: the per-product bundles configure exactly one.
-if (!config.psa && !config.automate && !config.screenconnect) {
-  console.error(
-    `${SERVER_NAME}: no ConnectWise product is configured, so no tools would be registered. ` +
-      `Set CW_PSA_* for PSA (Manage), CW_AUTOMATE_* for Automate, or CW_SCREENCONNECT_* for ` +
-      `Control. In Claude Desktop these come from Settings > Extensions.`,
-  );
-  process.exit(1);
+// This server always starts, whatever is configured — including nothing.
+//
+// It used to exit when no product was configured, which is exactly the case a
+// person needs help with: in Claude Desktop a half-filled Settings > Extensions
+// form (an Automate URL and password but no username, say) produces no config at
+// all, and the extension then showed only "server disconnected". Now the server
+// starts with cw_status_server alone, and that tool names the missing variables
+// and the Settings fields they come from.
+let config: AppConfig;
+let configError: string | undefined;
+try {
+  config = loadConfig();
+} catch (err) {
+  configError = err instanceof Error ? err.message : String(err);
+  console.error(`${SERVER_NAME}: ${configError}`);
+  config = { port: 8080 };
 }
 
-const server = createServer(config);
+const server = createServer(config, {}, { configError });
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error(
-  `${SERVER_NAME} v${SERVER_VERSION} running on stdio ` +
-    `(psa=${config.psa ? "yes" : "no"} automate=${config.automate ? "yes" : "no"} control=${config.screenconnect ? "yes" : "no"})`,
-);
+
+const products = `psa=${config.psa ? "yes" : "no"} automate=${config.automate ? "yes" : "no"} control=${config.screenconnect ? "yes" : "no"}`;
+console.error(`${SERVER_NAME} v${SERVER_VERSION} running on stdio (${products})`);
+if (!config.psa && !config.automate && !config.screenconnect) {
+  console.error(
+    `${SERVER_NAME}: no ConnectWise product is configured, so only cw_status_server is registered. ` +
+      `Set CW_PSA_* for PSA (Manage), CW_AUTOMATE_* for Automate, or CW_SCREENCONNECT_* for Control. ` +
+      `In Claude Desktop these come from Settings > Extensions — enable the extension and fill every ` +
+      `field for the product. Call cw_status_server for the exact list.`,
+  );
+}

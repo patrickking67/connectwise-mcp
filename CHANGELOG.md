@@ -5,6 +5,61 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-09-22
+
+### Added
+- **`cw_status_server`, and a server that always starts.** The stdio entry used
+  to exit when no ConnectWise product was configured — which is exactly the case
+  a person needs help with, because Claude Desktop then shows only "server
+  disconnected". It now starts whatever is configured, registering
+  `cw_status_server`, which reports which products are on, how many tools are
+  registered, and for anything missing the exact environment variables *and the
+  Settings → Extensions field titles they come from*.
+- **Five new interactive views**, on a shared MCP Apps shell (`src/apps/shell.ts`)
+  with the `@modelcontextprotocol/ext-apps` browser runtime inlined, so a view is
+  one self-contained HTML document with no CDN and no framework, correct in light
+  and dark: `cw_view_board` (a board's queue, a row opens the ticket card inline),
+  `cw_view_company` (contacts, configurations, open tickets, agreements),
+  `cw_view_time` (time entries rolled up per member),
+  `cw_automate_view_computers` and `cw_control_view_sessions`. The ticket card
+  (`cw_get_ticket`) moved onto the same shell, keeping its internal-note box and
+  gaining a `window.openai` fallback so it renders in ChatGPT too.
+- **Optional two-factor (TOTP) support for Automate and Control.** Both products
+  can require a second factor on the account an integration logs in as, which no
+  username/password login can satisfy headlessly — the real reason those two have
+  never worked against instances whose admin accounts carry 2FA. Set the optional
+  `automate_totp_secret` / `screenconnect_totp_secret` field
+  (`CW_AUTOMATE_TOTP_SECRET`, `CW_SCREENCONNECT_TOTP_SECRET`) to the seed the
+  account's authenticator was enrolled with and the connector generates each code
+  itself: Automate sends it as `TwoFactorPasscode` on the token request, Control
+  as the one-time password in `TryLogin`. RFC 6238 in `src/lib/totp.ts`, on
+  `node:crypto` alone and tested against the RFC vectors — no new dependency. When
+  a product demands a second factor and no seed is set, the error now says so and
+  names the field instead of reporting a generic authentication failure. The
+  cleaner alternative, a dedicated API service account exempt from two-factor, is
+  documented in `docs/SETUP.md`.
+- `docs/mcp-clients.md`: installing this server in Claude Desktop, Claude Code,
+  claude.ai/mobile (via the Azure Container App), ChatGPT desktop and Codex,
+  Cursor, Windsurf and VS Code — with the absolute-path note each one needs.
+- `docs/tool-renames.md`: the old → new name table.
+- A tool-name contract test: every name is `<prefix>_<verb>_<noun>`, the verb
+  matches the tool's kind, `view` appears only on a view, and every view carries
+  a `ui://` resource under both the MCP Apps and the ChatGPT key.
+
+### Changed
+- **Tool renames** (see `docs/tool-renames.md`): `cw_system_info` →
+  `cw_status_system`, `cw_api_request` → `cw_api_get`,
+  `cw_automate_api_request` → `cw_automate_api_get`, `cw_control_api_request` →
+  `cw_control_api_write` (it was already classified as a write, because Control
+  answers reads over POST; the name now says so).
+- A partly configured **Automate or Control** product now fails loudly with the
+  missing variables named, exactly as PSA already did. Previously a half-filled
+  Automate form was silently ignored, so the extension looked broken with no
+  explanation. Every product bundle lists `cw_status_server` alongside its own
+  tools.
+- Bundle icons refreshed from `mcp-logos/transparent/`: PSA now carries the
+  ConnectWise Manage compass; Automate and Control keep the corporate CW mark.
+
 ## [0.3.1] - 2026-09-16
 
 ### Added

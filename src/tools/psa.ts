@@ -1,9 +1,9 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { PsaClient, buildPatchOps, type ListParams } from "../lib/psa-client.js";
-import { jsonResult, uiResult, errorResult } from "../lib/format.js";
+import { jsonResult, errorResult } from "../lib/format.js";
 import { registerSpecTool, type ToolSpec } from "./spec.js";
-import { TICKET_CARD_URI } from "../ui/ticket-card.js";
+import { registerTicketCard, TICKET_VIEW_SPEC } from "../apps/index.js";
 
 const pageShape = {
   page: z.number().int().min(1).optional().describe("Page number (default 1)"),
@@ -224,21 +224,12 @@ const SEARCHES: SearchSpec[] = [
 
 /** Tools that are not one of the spec-driven searches. Order matches registration order. */
 const WORKFLOW_SPECS = {
-  systemInfo: {
-    name: "cw_system_info",
-    title: "PSA System Info",
+  systemStatus: {
+    name: "cw_status_system",
+    title: "PSA System Status",
     summary: "Read instance version and cloud/on-prem status — the cheap credentials check",
     surface: "psa",
     kind: "read",
-  },
-  getTicket: {
-    name: "cw_get_ticket",
-    summary: "Open one ticket as an interactive card, with its notes",
-    surface: "psa",
-    kind: "read",
-    ui: TICKET_CARD_URI,
-    invoking: "Opening the ticket…",
-    invoked: "Ticket opened.",
   },
   getTicketNotes: {
     name: "cw_get_ticket_notes",
@@ -310,9 +301,9 @@ const WORKFLOW_SPECS = {
     surface: "psa",
     kind: "read",
   },
-  apiRequest: {
-    name: "cw_api_request",
-    title: "PSA API Request",
+  apiGet: {
+    name: "cw_api_get",
+    title: "PSA API Get",
     summary: "GET any PSA endpoint that has no dedicated tool",
     surface: "psa",
     kind: "read",
@@ -328,7 +319,13 @@ const WORKFLOW_SPECS = {
   },
 } satisfies Record<string, ToolSpec>;
 
-export const PSA_TOOL_SPECS: ToolSpec[] = [...SEARCHES, ...Object.values(WORKFLOW_SPECS)];
+/** Registration order: the searches, then the workflow tools with the ticket card where it has always been. */
+export const PSA_TOOL_SPECS: ToolSpec[] = [
+  ...SEARCHES,
+  WORKFLOW_SPECS.systemStatus,
+  TICKET_VIEW_SPEC,
+  ...Object.values(WORKFLOW_SPECS).filter((spec) => spec !== WORKFLOW_SPECS.systemStatus),
+];
 
 function registerSearchTools(server: McpServer, client: PsaClient): void {
   for (const spec of SEARCHES) {
@@ -371,7 +368,7 @@ export function registerPsaTools(server: McpServer, client: PsaClient): void {
 
   registerSpecTool(
     server,
-    WORKFLOW_SPECS.systemInfo,
+    WORKFLOW_SPECS.systemStatus,
     {
       description:
         "Get ConnectWise PSA instance info (version, cloud/on-prem). Cheap connectivity and credentials check.",
@@ -379,27 +376,8 @@ export function registerPsaTools(server: McpServer, client: PsaClient): void {
     async () => jsonResult(await client.get("/system/info")),
   );
 
-  registerSpecTool<{ id: number; includeNotes?: boolean }>(
-    server,
-    WORKFLOW_SPECS.getTicket,
-    {
-      description:
-        "Get one service ticket by id with full detail, including its notes by default. Hosts that support MCP Apps render the result as an interactive ticket card with an in-card internal note box; every other host gets the same JSON.",
-      inputSchema: {
-        id: z.number().int().describe("Ticket id"),
-        includeNotes: z.boolean().optional().describe("Also fetch the ticket's notes (default true)"),
-      },
-    },
-    async ({ id, includeNotes }) => {
-      const ticket = await client.get(`/service/tickets/${id}`);
-      if (includeNotes === false) return uiResult({ ticket });
-      const notes = await client.getList(`/service/tickets/${id}/allNotes`, { pageSize: 25 });
-      return uiResult({
-        ticket,
-        notes: { count: notes.items.length, hasMore: notes.hasMore, items: notes.items },
-      });
-    },
-  );
+  // The ticket card: cw_get_ticket, an interactive read tool rendered by the apps shell.
+  registerTicketCard(server, client);
 
   registerSpecTool<{ ticketId: number; page?: number; pageSize?: number }>(
     server,
@@ -753,7 +731,7 @@ export function registerPsaTools(server: McpServer, client: PsaClient): void {
 
   registerSpecTool<{ path: string; query?: Record<string, string> }>(
     server,
-    WORKFLOW_SPECS.apiRequest,
+    WORKFLOW_SPECS.apiGet,
     {
       description:
         "Read-only escape hatch to the full ConnectWise PSA REST API (1,800+ endpoints) when no dedicated tool fits. GET only. Examples: /service/priorities; /system/departments; /sales/stages; /procurement/purchaseorders. List endpoints accept query params conditions/fields/orderBy/page/pageSize. Prefer the dedicated tools when one exists; use cw_api_write to change anything.",

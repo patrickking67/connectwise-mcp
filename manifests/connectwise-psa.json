@@ -3,9 +3,9 @@
   "manifest_version": "0.4",
   "name": "connectwise-psa",
   "display_name": "ConnectWise PSA",
-  "version": "0.3.1",
-  "description": "ConnectWise PSA (Manage): tickets, companies, contacts, time, expenses, projects, finance and sales. Read, write, and an interactive ticket card.",
-  "long_description": "ConnectWise PSA (Manage) as a local MCP server. Tickets, companies, contacts, configurations, time and expense entries, projects, agreements, invoices, opportunities, members, activities and schedule entries, plus board metadata and read/write escape hatches (cw_api_request, cw_api_write) for the rest of the 1,800+ endpoint REST surface.\n\nEvery tool is named cw_* and shows a Title Case name in the client. Read-only tools carry readOnlyHint and can run without a prompt; write tools declare themselves as writes; cw_get_ticket renders an MCP Apps card with an internal-note box on hosts that support it and plain JSON everywhere else.\n\nTHIS CONNECTOR WRITES. It can create and update tickets, add ticket notes, and create time and expense entries. The raw read tool cannot issue anything but GET, and cw_api_write refuses DELETE without confirm: true.\n\nThis bundle runs on your own machine and holds the ConnectWise credentials there. Automate and Control ship as separate bundles from the same repository.",
+  "version": "0.4.0",
+  "description": "ConnectWise PSA (Manage): tickets, companies, contacts, time, expenses, projects, finance and sales. Read, write, and interactive board, company, time and ticket views.",
+  "long_description": "ConnectWise PSA (Manage) as a local MCP server. Tickets, companies, contacts, configurations, time and expense entries, projects, agreements, invoices, opportunities, members, activities and schedule entries, plus board metadata and read/write escape hatches (cw_api_get, cw_api_write) for the rest of the 1,800+ endpoint REST surface.\n\nEvery tool is named cw_* and shows a Title Case name in the client. Read-only tools carry readOnlyHint and can run without a prompt; write tools declare themselves as writes; the interactive views (cw_get_ticket, cw_view_board, cw_view_company, cw_view_time) render as MCP Apps cards on hosts that support it and as plain JSON everywhere else.\n\ncw_status_server is always registered and reports which products are configured and exactly which fields are still empty.\n\nTHIS CONNECTOR WRITES. It can create and update tickets, add ticket notes, and create time and expense entries. The raw read tool cannot issue anything but GET, and cw_api_write refuses DELETE without confirm: true.\n\nThis bundle runs on your own machine and holds the ConnectWise credentials there. Automate and Control ship as separate bundles from the same repository.",
   "author": {
     "name": "DivergeIT"
   },
@@ -25,6 +25,7 @@
   ],
   "license": "MIT",
   "compatibility": {
+    "claude_desktop": ">=1.0.0",
     "platforms": [
       "darwin",
       "win32",
@@ -59,6 +60,10 @@
     }
   },
   "tools": [
+    {
+      "name": "Server Status",
+      "description": "Report which ConnectWise products are configured and what an unconfigured one still needs"
+    },
     {
       "name": "Search Tickets",
       "description": "Search service tickets"
@@ -120,7 +125,7 @@
       "description": "Search schedule entries — the dispatch calendar"
     },
     {
-      "name": "PSA System Info",
+      "name": "PSA System Status",
       "description": "Read instance version and cloud/on-prem status — the cheap credentials check"
     },
     {
@@ -172,12 +177,24 @@
       "description": "List the checklist tasks on a ticket"
     },
     {
-      "name": "PSA API Request",
+      "name": "PSA API Get",
       "description": "GET any PSA endpoint that has no dedicated tool"
     },
     {
       "name": "PSA API Write",
       "description": "POST, PUT, PATCH or DELETE any PSA endpoint, guarded and confirmed on every call — writes to ConnectWise"
+    },
+    {
+      "name": "View Board",
+      "description": "Interactive queue of one service board: tickets by status and priority, filterable, each opening as a card"
+    },
+    {
+      "name": "View Company",
+      "description": "Interactive overview of one company: contacts, configurations, open tickets and agreements"
+    },
+    {
+      "name": "View Time",
+      "description": "Interactive summary of time entries for a period (this week by default), rolled up per member"
     }
   ],
   "user_config": {

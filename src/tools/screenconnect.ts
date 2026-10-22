@@ -17,8 +17,8 @@ const SPECS = {
     surface: "control",
     kind: "read",
   },
-  apiRequest: {
-    name: "cw_control_api_request",
+  apiWrite: {
+    name: "cw_control_api_write",
     summary: "Call a ConnectWise Control endpoint; POST needs confirm: true (beta)",
     surface: "control",
     kind: "write",
@@ -34,7 +34,7 @@ export function registerScreenConnectTools(server: McpServer, client: ScreenConn
     SPECS.listSessions,
     {
       description:
-        "List ConnectWise Control (ScreenConnect) host sessions — access machines, support, or meetings. BETA: the response shape is Control-version-specific; if this errors, use cw_control_api_request.",
+        "List ConnectWise Control (ScreenConnect) host sessions — access machines, support, or meetings. BETA: the response shape is Control-version-specific; if this errors, use cw_control_api_write with method GET.",
       inputSchema: {
         sessionType: z
           .enum(["Access", "Support", "Meeting"])
@@ -56,7 +56,7 @@ export function registerScreenConnectTools(server: McpServer, client: ScreenConn
     confirm?: boolean;
   }>(
     server,
-    SPECS.apiRequest,
+    SPECS.apiWrite,
     {
       description:
         "Authenticated passthrough to a ConnectWise Control (ScreenConnect) instance. Paths are relative to the instance root, e.g. POST /Services/PageService.ashx/GetHostSessionInfo or /Services/SessionGroupService.ashx. Control answers many reads over POST, so POST is available — and because a POST can also act on live remote-access infrastructure, it requires confirm: true. BETA: endpoint signatures are version-specific.",

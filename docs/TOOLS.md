@@ -16,7 +16,15 @@ display one. The **Kind** column is what the tool's MCP annotations say about it
 
 <!-- BEGIN GENERATED TOOLS -->
 
-37 tools: 28 read-only, 8 write, 1 interactive.
+43 tools: 29 read-only, 8 write, 6 interactive.
+
+### Server
+
+Always registered, whatever is configured — including nothing. The first thing to call when a product's tools are missing.
+
+| Tool | Shows as | Kind | What it does |
+| --- | --- | --- | --- |
+| `cw_status_server` | Server Status | Read-only | Report which ConnectWise products are configured and what an unconfigured one still needs |
 
 ### ConnectWise PSA (Manage)
 
@@ -39,7 +47,7 @@ Always registered. Tickets, companies, contacts, assets, time, expenses, project
 | `cw_search_members` | Search Members | Read-only | Search members — the internal users and technicians |
 | `cw_search_activities` | Search Activities | Read-only | Search sales activities — calls, meetings and tasks |
 | `cw_search_schedule_entries` | Search Schedule Entries | Read-only | Search schedule entries — the dispatch calendar |
-| `cw_system_info` | PSA System Info | Read-only | Read instance version and cloud/on-prem status — the cheap credentials check |
+| `cw_status_system` | PSA System Status | Read-only | Read instance version and cloud/on-prem status — the cheap credentials check |
 | `cw_get_ticket` | Get Ticket | Interactive | Open one ticket as an interactive card, with its notes |
 | `cw_get_ticket_notes` | Get Ticket Notes | Read-only | Page through every note on a ticket |
 | `cw_create_ticket` | Create Ticket | Write | Create a service ticket |
@@ -52,8 +60,11 @@ Always registered. Tickets, companies, contacts, assets, time, expenses, project
 | `cw_get_board_info` | Get Board Info | Read-only | List the statuses, types and subtypes valid on one board |
 | `cw_get_agreement_additions` | Get Agreement Additions | Read-only | List the billed line items on one agreement |
 | `cw_get_ticket_tasks` | Get Ticket Tasks | Read-only | List the checklist tasks on a ticket |
-| `cw_api_request` | PSA API Request | Read-only | GET any PSA endpoint that has no dedicated tool |
+| `cw_api_get` | PSA API Get | Read-only | GET any PSA endpoint that has no dedicated tool |
 | `cw_api_write` | PSA API Write | Write | POST, PUT, PATCH or DELETE any PSA endpoint, guarded and confirmed on every call |
+| `cw_view_board` | View Board | Interactive | Interactive queue of one service board: tickets by status and priority, filterable, each opening as a card |
+| `cw_view_company` | View Company | Interactive | Interactive overview of one company: contacts, configurations, open tickets and agreements |
+| `cw_view_time` | View Time | Interactive | Interactive summary of time entries for a period (this week by default), rolled up per member |
 
 ### ConnectWise Automate (RMM)
 
@@ -64,8 +75,9 @@ Registered only when `CW_AUTOMATE_*` is configured.
 | `cw_automate_search_computers` | Search Automate Computers | Read-only | Search Automate agents (computers) |
 | `cw_automate_get_computer` | Get Automate Computer | Read-only | Get one Automate agent in full detail |
 | `cw_automate_list_clients` | List Automate Clients | Read-only | List Automate clients (companies) |
-| `cw_automate_api_request` | Automate API Request | Read-only | GET any Automate endpoint that has no dedicated tool |
+| `cw_automate_api_get` | Automate API Get | Read-only | GET any Automate endpoint that has no dedicated tool |
 | `cw_automate_api_write` | Automate API Write | Write | POST, PUT, PATCH or DELETE an Automate endpoint, acting on live RMM agents |
+| `cw_automate_view_computers` | View Automate Computers | Interactive | Interactive table of Automate agents: online or offline, OS, client and last contact |
 
 ### ConnectWise Control (ScreenConnect) — beta
 
@@ -74,18 +86,25 @@ Registered only when `CW_SCREENCONNECT_*` is configured.
 | Tool | Shows as | Kind | What it does |
 | --- | --- | --- | --- |
 | `cw_control_list_sessions` | List Control Sessions | Read-only | List ConnectWise Control host sessions (beta) |
-| `cw_control_api_request` | Control API Request | Write | Call a ConnectWise Control endpoint; POST needs confirm: true (beta) |
+| `cw_control_api_write` | Control API Write | Write | Call a ConnectWise Control endpoint; POST needs confirm: true (beta) |
+| `cw_control_view_sessions` | View Control Sessions | Interactive | Interactive table of Control sessions: machine, user, OS, connected or not, last seen (beta) |
 
 <!-- END GENERATED TOOLS -->
 
 ## Interactive surface
 
-`cw_get_ticket` declares `ui://connectwise-manage/ticket-card` under both the MCP Apps key
-(`_meta.ui.resourceUri`) and the ChatGPT alias (`_meta["openai/outputTemplate"]`). The card is a
-single self-contained HTML document — no CDN, no network — that renders the ticket, its recent
-notes, and a box that posts an internal note back through `cw_add_ticket_note`. That note tool
-carries `_meta.ui.visibility: ["model", "app"]` (and the `openai/widgetAccessible` alias), which
-is what allows a card, rather than the model, to call it.
+Interactive tools are the `cw_view_*` views plus `cw_get_ticket`. Each declares a
+`ui://connectwise/<view>.html` resource under both the MCP Apps key (`_meta.ui.resourceUri`)
+and the ChatGPT alias (`_meta["openai/outputTemplate"]`). Every view is a single
+self-contained HTML document — no CDN, no network — built on one shell with theme-aware
+styling (light and dark), sortable and filterable tables, and counts in the header.
+
+The ticket card renders a ticket, its recent notes, and a box that posts an internal note back
+through `cw_add_ticket_note`. That note tool carries `_meta.ui.visibility: ["model", "app"]`
+(and the `openai/widgetAccessible` alias), which is what allows a view, rather than the model,
+to call it. `cw_view_board` opens the same card inline for a clicked row, through
+`cw_get_ticket`.
 
 MCP Apps is an optional, negotiated extension (`io.modelcontextprotocol/ui`), so host support
-varies. Nothing depends on it: the same tool result carries the full JSON in `content`.
+varies. Nothing depends on it: the same tool result carries the full JSON in `content` and in
+`structuredContent`.

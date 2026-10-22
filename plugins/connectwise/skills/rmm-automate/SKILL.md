@@ -13,7 +13,7 @@ Surface the managed-endpoint fleet: what's online, what's stale, and details on 
 - `cw_automate_search_computers` — agents/computers by name, client, OS, last-contact
 - `cw_automate_get_computer` — full detail on one machine
 - `cw_automate_list_clients` — Automate clients (companies)
-- `cw_automate_api_request` — read the rest of the Automate API (scripts, monitors, alerts); GET only
+- `cw_automate_api_get` — read the rest of the Automate API (scripts, monitors, alerts); GET only
 - `cw_automate_api_write` — change something in Automate; asks the user every time and requires `confirm: true`
 
 ## Workflow
@@ -24,7 +24,7 @@ Surface the managed-endpoint fleet: what's online, what's stale, and details on 
    - Stale / offline: `LastContactDate < 2026-06-08` — hasn't checked in
 2. **Report.** Per machine: name, client, OS, last-contact, IP, status. Flag offline/stale machines (old `LastContactDate`) — those need attention.
 3. **Detail.** `cw_automate_get_computer` for one machine's full record (hardware, software, patch state).
-4. **Deeper** via `cw_automate_api_request`: alerts (`/Computers/{id}/Alerts`), scripts (`/Scripts`), monitors (`/Monitors`).
+4. **Deeper** via `cw_automate_api_get`: alerts (`/Computers/{id}/Alerts`), scripts (`/Scripts`), monitors (`/Monitors`).
 
 ## Tips
 
@@ -34,4 +34,4 @@ Surface the managed-endpoint fleet: what's online, what's stale, and details on 
 
 ## Guardrails
 
-Read-only by default: `cw_automate_api_request` cannot issue anything but GET. Changes go through `cw_automate_api_write`, which acts on live RMM agents, prompts the user on every call, and is refused without `confirm: true` — only run scripts or push changes when the user explicitly asks and confirms.
+Read-only by default: `cw_automate_api_get` cannot issue anything but GET. Changes go through `cw_automate_api_write`, which acts on live RMM agents, prompts the user on every call, and is refused without `confirm: true` — only run scripts or push changes when the user explicitly asks and confirms.

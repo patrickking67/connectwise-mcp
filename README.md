@@ -8,7 +8,7 @@
 
 > **This connector writes.** It creates and updates tickets, adds notes, and creates time and expense entries, and it carries guarded raw-request tools for all three products. The remote entry **refuses to start** unless `MCP_AUTH_TOKEN` or the Entra pair is configured — an open endpoint is not a degraded deployment of it. `MCP_ALLOW_ANONYMOUS=true` overrides the guard for a local, non-routable test and says so loudly on every start.
 
-**Guides:** [docs/TOOLS.md](docs/TOOLS.md) — the full tool catalog · [docs/deploying-azure.md](docs/deploying-azure.md) — the Azure runbook (Bicep, Key Vault, OIDC deploys) · [docs/GO-LIVE.md](docs/GO-LIVE.md) — remaining steps to flip it on · [docs/SETUP.md](docs/SETUP.md) — zero-to-working walkthrough · [docs/ENTRA_SETUP.md](docs/ENTRA_SETUP.md) — per-user Microsoft Entra sign-in instead of the shared token.
+**Guides:** [docs/mcp-clients.md](docs/mcp-clients.md) — install it in Claude Desktop, Claude Code, claude.ai/mobile, ChatGPT/Codex, Cursor and VS Code · [docs/TOOLS.md](docs/TOOLS.md) — the full tool catalog · [docs/deploying-azure.md](docs/deploying-azure.md) — the Azure runbook (Bicep, Key Vault, OIDC deploys) · [docs/GO-LIVE.md](docs/GO-LIVE.md) — remaining steps to flip it on · [docs/SETUP.md](docs/SETUP.md) — zero-to-working walkthrough · [docs/ENTRA_SETUP.md](docs/ENTRA_SETUP.md) — per-user Microsoft Entra sign-in instead of the shared token · [docs/tool-renames.md](docs/tool-renames.md) — the 0.4.0 name changes, old → new.
 
 ## How tools are named and classified
 
@@ -20,13 +20,21 @@
 
 No tool is left unannotated. Microsoft 365 Copilot treats an unannotated tool as destructive and prompts for it; Claude only parallelizes calls it has been told are read-only. Both facts are load-bearing here, so `src/tools/spec.ts` derives the annotations from a single declared kind and `registerSpecTool` is the only way a tool gets registered.
 
-The raw write escape hatches (`cw_api_write`, `cw_automate_api_write`) also set `_meta["anthropic/requiresUserInteraction"]`, which makes Claude Code prompt a person on **every** call with no "don't ask again" — and they still require `confirm: true` on the calls that cannot be undone. Control is the one surface that does not split by HTTP verb: its `.ashx` services answer reads over POST, so `cw_control_api_request` keeps both methods, stays classified as a write, and refuses POST without `confirm: true`.
+The raw write escape hatches (`cw_api_write`, `cw_automate_api_write`) also set `_meta["anthropic/requiresUserInteraction"]`, which makes Claude Code prompt a person on **every** call with no "don't ask again" — and they still require `confirm: true` on the calls that cannot be undone. Control is the one surface that does not split by HTTP verb: its `.ashx` services answer reads over POST, so `cw_control_api_write` keeps both methods, stays classified as a write, and refuses POST without `confirm: true`.
 
 ## Tools
 
 <!-- BEGIN GENERATED TOOLS -->
 
-37 tools: 28 read-only, 8 write, 1 interactive.
+43 tools: 29 read-only, 8 write, 6 interactive.
+
+### Server
+
+Always registered, whatever is configured — including nothing. The first thing to call when a product's tools are missing.
+
+| Tool | Shows as | Kind | What it does |
+| --- | --- | --- | --- |
+| `cw_status_server` | Server Status | Read-only | Report which ConnectWise products are configured and what an unconfigured one still needs |
 
 ### ConnectWise PSA (Manage)
 
@@ -49,7 +57,7 @@ Always registered. Tickets, companies, contacts, assets, time, expenses, project
 | `cw_search_members` | Search Members | Read-only | Search members — the internal users and technicians |
 | `cw_search_activities` | Search Activities | Read-only | Search sales activities — calls, meetings and tasks |
 | `cw_search_schedule_entries` | Search Schedule Entries | Read-only | Search schedule entries — the dispatch calendar |
-| `cw_system_info` | PSA System Info | Read-only | Read instance version and cloud/on-prem status — the cheap credentials check |
+| `cw_status_system` | PSA System Status | Read-only | Read instance version and cloud/on-prem status — the cheap credentials check |
 | `cw_get_ticket` | Get Ticket | Interactive | Open one ticket as an interactive card, with its notes |
 | `cw_get_ticket_notes` | Get Ticket Notes | Read-only | Page through every note on a ticket |
 | `cw_create_ticket` | Create Ticket | Write | Create a service ticket |
@@ -62,8 +70,11 @@ Always registered. Tickets, companies, contacts, assets, time, expenses, project
 | `cw_get_board_info` | Get Board Info | Read-only | List the statuses, types and subtypes valid on one board |
 | `cw_get_agreement_additions` | Get Agreement Additions | Read-only | List the billed line items on one agreement |
 | `cw_get_ticket_tasks` | Get Ticket Tasks | Read-only | List the checklist tasks on a ticket |
-| `cw_api_request` | PSA API Request | Read-only | GET any PSA endpoint that has no dedicated tool |
+| `cw_api_get` | PSA API Get | Read-only | GET any PSA endpoint that has no dedicated tool |
 | `cw_api_write` | PSA API Write | Write | POST, PUT, PATCH or DELETE any PSA endpoint, guarded and confirmed on every call |
+| `cw_view_board` | View Board | Interactive | Interactive queue of one service board: tickets by status and priority, filterable, each opening as a card |
+| `cw_view_company` | View Company | Interactive | Interactive overview of one company: contacts, configurations, open tickets and agreements |
+| `cw_view_time` | View Time | Interactive | Interactive summary of time entries for a period (this week by default), rolled up per member |
 
 ### ConnectWise Automate (RMM)
 
@@ -74,8 +85,9 @@ Registered only when `CW_AUTOMATE_*` is configured.
 | `cw_automate_search_computers` | Search Automate Computers | Read-only | Search Automate agents (computers) |
 | `cw_automate_get_computer` | Get Automate Computer | Read-only | Get one Automate agent in full detail |
 | `cw_automate_list_clients` | List Automate Clients | Read-only | List Automate clients (companies) |
-| `cw_automate_api_request` | Automate API Request | Read-only | GET any Automate endpoint that has no dedicated tool |
+| `cw_automate_api_get` | Automate API Get | Read-only | GET any Automate endpoint that has no dedicated tool |
 | `cw_automate_api_write` | Automate API Write | Write | POST, PUT, PATCH or DELETE an Automate endpoint, acting on live RMM agents |
+| `cw_automate_view_computers` | View Automate Computers | Interactive | Interactive table of Automate agents: online or offline, OS, client and last contact |
 
 ### ConnectWise Control (ScreenConnect) — beta
 
@@ -84,7 +96,8 @@ Registered only when `CW_SCREENCONNECT_*` is configured.
 | Tool | Shows as | Kind | What it does |
 | --- | --- | --- | --- |
 | `cw_control_list_sessions` | List Control Sessions | Read-only | List ConnectWise Control host sessions (beta) |
-| `cw_control_api_request` | Control API Request | Write | Call a ConnectWise Control endpoint; POST needs confirm: true (beta) |
+| `cw_control_api_write` | Control API Write | Write | Call a ConnectWise Control endpoint; POST needs confirm: true (beta) |
+| `cw_control_view_sessions` | View Control Sessions | Interactive | Interactive table of Control sessions: machine, user, OS, connected or not, last seen (beta) |
 
 <!-- END GENERATED TOOLS -->
 
@@ -93,7 +106,7 @@ Registered only when `CW_SCREENCONNECT_*` is configured.
 | Client | Transport | What it does with the annotations |
 | --- | --- | --- |
 | **Claude Code** | stdio or Streamable HTTP | Runs read-only tools in parallel, prompts on writes, always prompts on the `*_api_write` tools ([docs](https://code.claude.com/docs/en/mcp)) |
-| **Claude Desktop / claude.ai** | MCPB bundle or custom connector URL | Same annotations; renders the interactive ticket card where MCP Apps is enabled |
+| **Claude Desktop / claude.ai** | MCPB bundle or custom connector URL | Same annotations; renders the interactive views where MCP Apps is enabled |
 | **ChatGPT / OpenAI Responses API** | Streamable HTTP | Reads `readOnlyHint` for approval filtering and `_meta["openai/outputTemplate"]` for the card ([Apps SDK](https://developers.openai.com/apps-sdk/)) |
 | **Microsoft 365 Copilot / Copilot Studio** | Streamable HTTP | Confirms any tool where `readOnlyHint` is false or `destructiveHint` is true, labelling the prompt with `annotations.title` ([Microsoft Learn](https://learn.microsoft.com/microsoft-365/copilot/extensibility/plugin-confirmation-prompts)) |
 | **VS Code / Visual Studio Copilot** | stdio or HTTP | Per-tool approval, remembered per session or solution ([Microsoft Learn](https://learn.microsoft.com/visualstudio/ide/mcp-servers)) |
@@ -153,12 +166,14 @@ npx @modelcontextprotocol/inspector
 
 ## Install locally (MCPB bundles)
 
+Every client — Claude Desktop, Claude Code, claude.ai and mobile, ChatGPT and Codex, Cursor, VS Code — is covered step by step in **[docs/mcp-clients.md](docs/mcp-clients.md)**.
+
 ```bash
 npm ci
 npm run mcpb:pack     # dist/connectwise-psa.mcpb, connectwise-automate.mcpb, connectwise-control.mcpb
 ```
 
-One bundle per product, each with its own icon and asking only for that product's credentials: **ConnectWise PSA** (30 tools), **ConnectWise Automate** (5) and **ConnectWise Control** (2). Install the ones you use through **Settings → Extensions → Advanced settings** in Claude for macOS or Windows. All three run the same server; the manifests under `manifests/` are generated from the tool catalog by `npm run tools:sync`, and `npm run mcpb:pack:suite` builds the all-in-one `dist/connectwise.mcpb` from the root manifest instead. Bundles are packed from a clean staging directory with production dependencies only.
+One bundle per product, each with its own icon and asking only for that product's credentials: **ConnectWise PSA** (34 tools), **ConnectWise Automate** (7) and **ConnectWise Control** (4) — each count includes the always-registered `cw_status_server`. Install the ones you use through **Settings → Extensions → Advanced settings** in Claude for macOS or Windows. All three run the same server; the manifests under `manifests/` are generated from the tool catalog by `npm run tools:sync`, and `npm run mcpb:pack:suite` builds the all-in-one `dist/connectwise.mcpb` from the root manifest instead. Bundles are packed from a clean staging directory with production dependencies only.
 
 For Claude Code, point at the stdio entry directly:
 
@@ -219,7 +234,7 @@ Any other container host (Railway, Fly.io, Cloud Run, a VPS) works the same way:
 - ConnectWise credentials live **server-side only**; MCP clients never see them. Scope the API member's security role to what you actually want AI to do (the PSA security role matrix applies to API calls).
 - The endpoint token can be sent as a Bearer header or embedded in the URL path (capability URL) for clients that can't send headers. Rotate it by updating the secret.
 - **Per-user auth:** set `AZURE_TENANT_ID` + `AZURE_CLIENT_ID` and the server validates Microsoft Entra bearer JWTs (signature/issuer/audience/expiry) and serves RFC 9728 OAuth discovery metadata — see [docs/ENTRA_SETUP.md](docs/ENTRA_SETUP.md). Works alongside or instead of the shared token.
-- Destructive guardrails, unchanged by the read/write split: `cw_api_write` refuses `DELETE` without `confirm: true`, `cw_automate_api_write` refuses every call without it, and `cw_control_api_request` refuses `POST` without it. The read escape hatches (`cw_api_request`, `cw_automate_api_request`) cannot issue anything but `GET`.
+- Destructive guardrails, unchanged by the read/write split: `cw_api_write` refuses `DELETE` without `confirm: true`, `cw_automate_api_write` refuses every call without it, and `cw_control_api_write` refuses `POST` without it. The read escape hatches (`cw_api_get`, `cw_automate_api_get`) cannot issue anything but `GET`.
 - Annotations are hints, not enforcement — the guardrails above are in the handlers, where they hold regardless of what a client does with the metadata.
 
 ## Claude plugin + marketplace
@@ -236,7 +251,6 @@ Then set `CONNECTWISE_MCP_URL` (your `/mcp` endpoint) and `CONNECTWISE_MCP_TOKEN
 ## Roadmap
 
 - **Port the rest of the fleet's repository baseline.** The other connectors carry `AGENTS.md`, `CONTRIBUTING.md`, `SECURITY.md`, `SUPPORT.md`, `CODE_OF_CONDUCT.md`, a governance policy, and a `check-repo-contract.mjs` invariant checker wired into CI. This repository has CI, a changelog, generated tool docs and `CLAUDE.md`, but not the rest.
-- **More interactive surfaces.** The ticket card is the first; company overview and time-entry confirmation are the obvious next two.
 - **Harden the Control (ScreenConnect) module** — it ships as beta (forms-auth, version-dependent); validate against live instances and add session actions.
 - Callback (webhook) receiver for PSA ticket events.
 
@@ -253,7 +267,9 @@ src/
   tools/psa.ts        15 spec-driven search tools + 15 workflow tools
   tools/automate.ts   Automate tools (conditional)
   tools/screenconnect.ts  Control tools (conditional, beta)
-  ui/ticket-card.ts   the MCP Apps ticket card and its ui:// resource
+  apps/shell.ts       the shared MCP Apps view shell (CSS, boot, registerView)
+  apps/views/*.ts     the six interactive views (ticket, board, company, time, Automate, Control)
+  tools/status.ts     cw_status_server — registered whatever is configured
   lib/psa-client.ts   PSA REST client (auth, 429 retry w/ Retry-After, Link-header pagination)
 scripts/sync-tool-docs.ts  regenerates docs/TOOLS.md, the README table and manifest.json
 test/                 vitest suites (client, config, startup guards, end-to-end via InMemoryTransport)

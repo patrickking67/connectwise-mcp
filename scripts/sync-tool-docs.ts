@@ -24,6 +24,12 @@ const check = process.argv.includes("--check");
 
 const SURFACES: Array<{ key: ToolSurface; heading: string; blurb: string }> = [
   {
+    key: "server",
+    heading: "Server",
+    blurb:
+      "Always registered, whatever is configured \u2014 including nothing. The first thing to call when a product's tools are missing.",
+  },
+  {
     key: "psa",
     heading: "ConnectWise PSA (Manage)",
     blurb: "Always registered. Tickets, companies, contacts, assets, time, expenses, projects, finance, sales.",
@@ -106,19 +112,28 @@ ${GENERATED_BLOCK}
 
 ## Interactive surface
 
-\`cw_get_ticket\` declares \`ui://connectwise-manage/ticket-card\` under both the MCP Apps key
-(\`_meta.ui.resourceUri\`) and the ChatGPT alias (\`_meta["openai/outputTemplate"]\`). The card is a
-single self-contained HTML document — no CDN, no network — that renders the ticket, its recent
-notes, and a box that posts an internal note back through \`cw_add_ticket_note\`. That note tool
-carries \`_meta.ui.visibility: ["model", "app"]\` (and the \`openai/widgetAccessible\` alias), which
-is what allows a card, rather than the model, to call it.
+Interactive tools are the \`cw_view_*\` views plus \`cw_get_ticket\`. Each declares a
+\`ui://connectwise/<view>.html\` resource under both the MCP Apps key (\`_meta.ui.resourceUri\`)
+and the ChatGPT alias (\`_meta["openai/outputTemplate"]\`). Every view is a single
+self-contained HTML document \u2014 no CDN, no network \u2014 built on one shell with theme-aware
+styling (light and dark), sortable and filterable tables, and counts in the header.
+
+The ticket card renders a ticket, its recent notes, and a box that posts an internal note back
+through \`cw_add_ticket_note\`. That note tool carries \`_meta.ui.visibility: ["model", "app"]\`
+(and the \`openai/widgetAccessible\` alias), which is what allows a view, rather than the model,
+to call it. \`cw_view_board\` opens the same card inline for a clicked row, through
+\`cw_get_ticket\`.
 
 MCP Apps is an optional, negotiated extension (\`io.modelcontextprotocol/ui\`), so host support
-varies. Nothing depends on it: the same tool result carries the full JSON in \`content\`.
+varies. Nothing depends on it: the same tool result carries the full JSON in \`content\` and in
+\`structuredContent\`.
 `;
 
+/** A bundle lists its product's tools plus the server tools every bundle registers. */
 function manifestTools(surface?: ToolSurface): Array<{ name: string; description: string }> {
-  return TOOL_CATALOG.filter((tool) => surface === undefined || tool.surface === surface).map((tool) => ({
+  return TOOL_CATALOG.filter(
+    (tool) => surface === undefined || tool.surface === surface || tool.surface === "server",
+  ).map((tool) => ({
     name: tool.title,
     description: tool.category === "write" ? `${tool.summary} — writes to ConnectWise` : tool.summary,
   }));
@@ -135,6 +150,8 @@ const PRODUCT_BUNDLES: Array<{
   long_description: string;
   /** user_config keys this bundle keeps; every one becomes required. */
   config: string[];
+  /** user_config keys this bundle keeps as optional — the two-factor seeds. */
+  optionalConfig?: string[];
 }> = [
   {
     surface: "psa",
@@ -142,9 +159,9 @@ const PRODUCT_BUNDLES: Array<{
     display_name: "ConnectWise PSA",
     icon: "assets/connectwise-psa-512.png",
     keywords: ["connectwise", "psa", "manage", "msp", "mcp"],
-    description: "ConnectWise PSA (Manage): tickets, companies, contacts, time, expenses, projects, finance and sales. Read, write, and an interactive ticket card.",
+    description: "ConnectWise PSA (Manage): tickets, companies, contacts, time, expenses, projects, finance and sales. Read, write, and interactive board, company, time and ticket views.",
     long_description:
-      "ConnectWise PSA (Manage) as a local MCP server. Tickets, companies, contacts, configurations, time and expense entries, projects, agreements, invoices, opportunities, members, activities and schedule entries, plus board metadata and read/write escape hatches (cw_api_request, cw_api_write) for the rest of the 1,800+ endpoint REST surface.\n\nEvery tool is named cw_* and shows a Title Case name in the client. Read-only tools carry readOnlyHint and can run without a prompt; write tools declare themselves as writes; cw_get_ticket renders an MCP Apps card with an internal-note box on hosts that support it and plain JSON everywhere else.\n\nTHIS CONNECTOR WRITES. It can create and update tickets, add ticket notes, and create time and expense entries. The raw read tool cannot issue anything but GET, and cw_api_write refuses DELETE without confirm: true.\n\nThis bundle runs on your own machine and holds the ConnectWise credentials there. Automate and Control ship as separate bundles from the same repository.",
+      "ConnectWise PSA (Manage) as a local MCP server. Tickets, companies, contacts, configurations, time and expense entries, projects, agreements, invoices, opportunities, members, activities and schedule entries, plus board metadata and read/write escape hatches (cw_api_get, cw_api_write) for the rest of the 1,800+ endpoint REST surface.\n\nEvery tool is named cw_* and shows a Title Case name in the client. Read-only tools carry readOnlyHint and can run without a prompt; write tools declare themselves as writes; the interactive views (cw_get_ticket, cw_view_board, cw_view_company, cw_view_time) render as MCP Apps cards on hosts that support it and as plain JSON everywhere else.\n\ncw_status_server is always registered and reports which products are configured and exactly which fields are still empty.\n\nTHIS CONNECTOR WRITES. It can create and update tickets, add ticket notes, and create time and expense entries. The raw read tool cannot issue anything but GET, and cw_api_write refuses DELETE without confirm: true.\n\nThis bundle runs on your own machine and holds the ConnectWise credentials there. Automate and Control ship as separate bundles from the same repository.",
     config: ["psa_site", "psa_company_id", "psa_public_key", "psa_private_key", "psa_client_id"],
   },
   {
@@ -153,10 +170,11 @@ const PRODUCT_BUNDLES: Array<{
     display_name: "ConnectWise Automate",
     icon: "assets/connectwise-automate-512.png",
     keywords: ["connectwise", "automate", "rmm", "msp", "mcp"],
-    description: "ConnectWise Automate (RMM): computers, clients, and read/write escape hatches to the Automate REST API.",
+    description: "ConnectWise Automate (RMM): computers, clients, an interactive computers table, and read/write escape hatches to the Automate REST API.",
     long_description:
-      "ConnectWise Automate (RMM) as a local MCP server. Search and read computers, list clients, and reach any other Automate endpoint through cw_automate_api_request (GET only) and cw_automate_api_write.\n\nEvery tool is named cw_automate_* and shows a Title Case name in the client. Read-only tools carry readOnlyHint; the write escape hatch refuses every call without confirm: true.\n\nThis bundle runs on your own machine and holds the Automate credentials there. PSA and Control ship as separate bundles from the same repository.",
+      "ConnectWise Automate (RMM) as a local MCP server. Search and read computers, list clients, and reach any other Automate endpoint through cw_automate_api_get (GET only) and cw_automate_api_write.\n\nEvery tool is named cw_automate_* and shows a Title Case name in the client. Read-only tools carry readOnlyHint; the write escape hatch refuses every call without confirm: true. cw_automate_view_computers renders an interactive agent table on hosts that support MCP Apps. cw_status_server is always registered and reports exactly which fields are still empty.\n\nThis bundle runs on your own machine and holds the Automate credentials there. PSA and Control ship as separate bundles from the same repository.",
     config: ["automate_url", "automate_username", "automate_password", "automate_client_id"],
+    optionalConfig: ["automate_totp_secret"],
   },
   {
     surface: "control",
@@ -164,10 +182,11 @@ const PRODUCT_BUNDLES: Array<{
     display_name: "ConnectWise Control",
     icon: "assets/connectwise-control-512.png",
     keywords: ["connectwise", "control", "screenconnect", "msp", "mcp"],
-    description: "ConnectWise Control (ScreenConnect): sessions and a read-only escape hatch to the Control API. Beta.",
+    description: "ConnectWise Control (ScreenConnect): sessions, an interactive session table, and a confirmed passthrough to the Control API. Beta.",
     long_description:
-      "ConnectWise Control (ScreenConnect) as a local MCP server, in beta. List sessions and reach other Control endpoints through cw_control_api_request (GET only).\n\nEvery tool is named cw_control_* and shows a Title Case name in the client. Both tools are read-only and carry readOnlyHint.\n\nThis bundle runs on your own machine and holds the Control credentials there. PSA and Automate ship as separate bundles from the same repository.",
+      "ConnectWise Control (ScreenConnect) as a local MCP server, in beta. List sessions and reach other Control endpoints through cw_control_api_write (GET, and POST with confirm: true).\n\nEvery tool is named cw_control_* and shows a Title Case name in the client. cw_control_list_sessions and cw_control_view_sessions are read-only and carry readOnlyHint; cw_control_api_write requires confirm: true for POST. cw_status_server is always registered and reports exactly which fields are still empty.\n\nThis bundle runs on your own machine and holds the Control credentials there. PSA and Automate ship as separate bundles from the same repository.",
     config: ["screenconnect_url", "screenconnect_username", "screenconnect_password"],
+    optionalConfig: ["screenconnect_totp_secret"],
   },
 ];
 
@@ -178,11 +197,14 @@ function productManifest(root: Json, bundle: (typeof PRODUCT_BUNDLES)[number]): 
   const rootConfig = root.user_config as Record<string, Json>;
   const rootServer = root.server as Json;
   const rootEnv = (rootServer.mcp_config as Json).env as Record<string, string>;
+  const optional = bundle.optionalConfig ?? [];
   const userConfig: Record<string, Json> = {};
-  for (const key of bundle.config) {
-    const field = { ...rootConfig[key], required: true };
-    // In its own bundle nothing about a product is optional, so the root
-    // manifest's "leave blank" and "only used when" guidance does not apply.
+  for (const key of [...bundle.config, ...optional]) {
+    // A product's credentials are all required in its own bundle; the two-factor
+    // seed genuinely is not, because most accounts should not need one.
+    const field = { ...rootConfig[key], required: !optional.includes(key) };
+    // The root manifest's "(optional)" titles and its "leave blank" and "only
+    // used when" guidance are about the all-in-one bundle, not this one.
     field.title = String(field.title).replace(/ \(optional\)$/, "");
     field.description = String(field.description ?? "")
       .replace(/\s*Leave blank to register no \w+ tools\./, "")
@@ -193,7 +215,7 @@ function productManifest(root: Json, bundle: (typeof PRODUCT_BUNDLES)[number]): 
   const env: Record<string, string> = {};
   for (const [name, value] of Object.entries(rootEnv)) {
     const key = /\$\{user_config\.([^}]+)\}/.exec(value)?.[1];
-    if (key !== undefined && bundle.config.includes(key)) env[name] = value;
+    if (key !== undefined && (bundle.config.includes(key) || optional.includes(key))) env[name] = value;
   }
   return {
     $schema: root.$schema,

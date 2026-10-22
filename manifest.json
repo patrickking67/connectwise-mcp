@@ -3,7 +3,7 @@
   "manifest_version": "0.4",
   "name": "connectwise",
   "display_name": "ConnectWise",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "ConnectWise Manage (PSA), with optional Automate and Control, in one MCP server. Read, write, and an interactive ticket card.",
   "long_description": "One connector for the ConnectWise stack. PSA (Manage) is always available; Automate and Control (ScreenConnect) register themselves only when their credentials are configured, so an unconfigured integration contributes no tools rather than tools that fail.\n\nEvery tool is named cw_* and shows a Title Case name in the client. Tools come in three kinds and say which they are: read-only tools carry readOnlyHint and can run without a prompt; write tools declare themselves as writes; cw_get_ticket is interactive, rendering an MCP Apps card with an internal-note box on hosts that support it and plain JSON everywhere else.\n\nPSA covers tickets, companies, contacts, configurations, time and expense entries, projects, agreements, invoices, opportunities, members, activities and schedule entries, plus board metadata and read/write escape hatches for endpoints without a dedicated tool.\n\nUNLIKE THE OTHER CONNECTORS IN THIS FLEET, THIS ONE WRITES. It can create and update tickets, add ticket notes, and create time and expense entries. Three guardrails are not optional and must not be weakened: the raw read tools cannot issue anything but GET, cw_api_write refuses DELETE without confirm: true, and the Automate and Control write tools refuse every call without it.\n\nThis bundle is the LOCAL install: it runs on your own machine and holds the ConnectWise credentials there. The same tools are also served by a remote deployment on Azure Container Apps for clients that cannot launch a local process — see the repository documentation.",
   "author": {
@@ -35,11 +35,17 @@
         "CW_AUTOMATE_CLIENT_ID": "${user_config.automate_client_id}",
         "CW_SCREENCONNECT_URL": "${user_config.screenconnect_url}",
         "CW_SCREENCONNECT_USERNAME": "${user_config.screenconnect_username}",
-        "CW_SCREENCONNECT_PASSWORD": "${user_config.screenconnect_password}"
+        "CW_SCREENCONNECT_PASSWORD": "${user_config.screenconnect_password}",
+        "CW_AUTOMATE_TOTP_SECRET": "${user_config.automate_totp_secret}",
+        "CW_SCREENCONNECT_TOTP_SECRET": "${user_config.screenconnect_totp_secret}"
       }
     }
   },
   "tools": [
+    {
+      "name": "Server Status",
+      "description": "Report which ConnectWise products are configured and what an unconfigured one still needs"
+    },
     {
       "name": "Search Tickets",
       "description": "Search service tickets"
@@ -101,7 +107,7 @@
       "description": "Search schedule entries — the dispatch calendar"
     },
     {
-      "name": "PSA System Info",
+      "name": "PSA System Status",
       "description": "Read instance version and cloud/on-prem status — the cheap credentials check"
     },
     {
@@ -153,12 +159,24 @@
       "description": "List the checklist tasks on a ticket"
     },
     {
-      "name": "PSA API Request",
+      "name": "PSA API Get",
       "description": "GET any PSA endpoint that has no dedicated tool"
     },
     {
       "name": "PSA API Write",
       "description": "POST, PUT, PATCH or DELETE any PSA endpoint, guarded and confirmed on every call — writes to ConnectWise"
+    },
+    {
+      "name": "View Board",
+      "description": "Interactive queue of one service board: tickets by status and priority, filterable, each opening as a card"
+    },
+    {
+      "name": "View Company",
+      "description": "Interactive overview of one company: contacts, configurations, open tickets and agreements"
+    },
+    {
+      "name": "View Time",
+      "description": "Interactive summary of time entries for a period (this week by default), rolled up per member"
     },
     {
       "name": "Search Automate Computers",
@@ -173,7 +191,7 @@
       "description": "List Automate clients (companies)"
     },
     {
-      "name": "Automate API Request",
+      "name": "Automate API Get",
       "description": "GET any Automate endpoint that has no dedicated tool"
     },
     {
@@ -181,12 +199,20 @@
       "description": "POST, PUT, PATCH or DELETE an Automate endpoint, acting on live RMM agents — writes to ConnectWise"
     },
     {
+      "name": "View Automate Computers",
+      "description": "Interactive table of Automate agents: online or offline, OS, client and last contact"
+    },
+    {
       "name": "List Control Sessions",
       "description": "List ConnectWise Control host sessions (beta)"
     },
     {
-      "name": "Control API Request",
+      "name": "Control API Write",
       "description": "Call a ConnectWise Control endpoint; POST needs confirm: true (beta) — writes to ConnectWise"
+    },
+    {
+      "name": "View Control Sessions",
+      "description": "Interactive table of Control sessions: machine, user, OS, connected or not, last seen (beta)"
     }
   ],
   "tools_generated": false,
@@ -201,6 +227,7 @@
   ],
   "license": "MIT",
   "compatibility": {
+    "claude_desktop": ">=1.0.0",
     "platforms": [
       "darwin",
       "win32",
@@ -270,6 +297,13 @@
       "sensitive": true,
       "description": "Automate developer clientId GUID, sent with every Automate request."
     },
+    "automate_totp_secret": {
+      "type": "string",
+      "title": "Automate TOTP secret (optional)",
+      "description": "Only needed when the Automate login account keeps two-factor authentication enabled. Paste the same base32 seed the account's authenticator was enrolled with and the connector generates each passcode itself. The cleaner alternative is a dedicated API service account exempt from two-factor; leave this blank then.",
+      "required": false,
+      "sensitive": true
+    },
     "screenconnect_url": {
       "type": "string",
       "title": "Control (ScreenConnect) URL (optional)",
@@ -288,6 +322,13 @@
       "required": false,
       "sensitive": true,
       "description": "Control account password. Supply it from your secret manager."
+    },
+    "screenconnect_totp_secret": {
+      "type": "string",
+      "title": "Control TOTP secret (optional)",
+      "description": "Only needed when the Control login account keeps two-factor authentication enabled. Paste the same base32 seed the account's authenticator was enrolled with and the connector generates each one-time code itself. The cleaner alternative is a dedicated API service account exempt from two-factor; leave this blank then.",
+      "required": false,
+      "sensitive": true
     }
   },
   "icon": "assets/connectwise-512.png",

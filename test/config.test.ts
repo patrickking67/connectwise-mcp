@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadConfig, normalizePsaSite } from "../src/config.js";
+import { incompleteConfigMessage, loadConfig, normalizePsaSite, productStatus } from "../src/config.js";
 
 describe("normalizePsaSite", () => {
   it("adds the api- prefix for cloud hosts", () => {
@@ -116,14 +116,59 @@ describe("loadConfig", () => {
     expect(config.screenconnect).toBeUndefined();
   });
 
-  it("does not register Automate when only some of its fields are placeholders", () => {
-    const config = loadConfig({
-      ...PSA_ENV,
-      CW_AUTOMATE_URL: "https://rmm.example.com",
-      CW_AUTOMATE_USERNAME: "${user_config.automate_username}",
-      CW_AUTOMATE_PASSWORD: "pw",
-      CW_AUTOMATE_CLIENT_ID: "cid",
-    });
-    expect(config.automate).toBeUndefined();
+  it("rejects a half-filled Automate form and names the field that is empty", () => {
+    // The real failure this server was reported for: Claude Desktop's Automate
+    // settings held a URL, a clientId and a password but no username, so the
+    // partial config was silently ignored and the extension looked broken.
+    expect(() =>
+      loadConfig({
+        ...PSA_ENV,
+        CW_AUTOMATE_URL: "https://rmm.example.com",
+        CW_AUTOMATE_USERNAME: "${user_config.automate_username}",
+        CW_AUTOMATE_PASSWORD: "pw",
+        CW_AUTOMATE_CLIENT_ID: "cid",
+      }),
+    ).toThrow(/CW_AUTOMATE_USERNAME \(Settings > Extensions field "Automate username"\)/);
+  });
+
+  it("rejects a half-filled Control form the same way", () => {
+    expect(() =>
+      loadConfig({
+        ...PSA_ENV,
+        CW_SCREENCONNECT_URL: "https://x.screenconnect.com",
+        CW_SCREENCONNECT_USERNAME: "admin",
+      }),
+    ).toThrow(/CW_SCREENCONNECT_PASSWORD \(Settings > Extensions field "Control password"\)/);
+  });
+
+  it("names every missing PSA variable with its settings field", () => {
+    expect(() => loadConfig({ CW_PSA_SITE: "na.myconnectwise.net" })).toThrow(
+      /CW_PSA_COMPANY_ID \(Settings > Extensions field "PSA company id"\)/,
+    );
+  });
+});
+
+describe("productStatus", () => {
+  it("separates 'nothing set' from 'half set'", () => {
+    expect(productStatus({}, "automate")).toMatchObject({ set: [] });
+    const partial = productStatus({ CW_AUTOMATE_URL: "https://rmm.example.com" }, "automate");
+    expect(partial.set).toEqual(["CW_AUTOMATE_URL"]);
+    expect(partial.missing.map((v) => v.env)).toEqual([
+      "CW_AUTOMATE_USERNAME",
+      "CW_AUTOMATE_PASSWORD",
+      "CW_AUTOMATE_CLIENT_ID",
+    ]);
+  });
+
+  it("ignores unexpanded placeholders when deciding what is set", () => {
+    const status = productStatus({ CW_AUTOMATE_URL: "${user_config.automate_url}" }, "automate");
+    expect(status.set).toEqual([]);
+  });
+
+  it("builds a message a Claude Desktop user can act on", () => {
+    const { missing } = productStatus({}, "screenconnect");
+    const message = incompleteConfigMessage("screenconnect", missing);
+    expect(message).toContain("ConnectWise Control (ScreenConnect)");
+    expect(message).toContain('Settings > Extensions field "Control (ScreenConnect) URL"');
   });
 });

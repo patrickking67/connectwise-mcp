@@ -47,8 +47,8 @@ describe("connectwise MCP server", () => {
       "cw_create_time_entry",
       "cw_list_boards",
       "cw_get_board_info",
-      "cw_api_request",
-      "cw_system_info",
+      "cw_api_get",
+      "cw_status_system",
       "cw_search_project_tickets",
       "cw_search_purchase_orders",
       "cw_search_expenses",
@@ -177,7 +177,7 @@ describe("connectwise MCP server", () => {
     const fetchImpl = vi.fn().mockResolvedValue(jsonResponse([{ id: 1 }]));
     const client = await connect(CONFIG, fetchImpl);
 
-    await client.callTool({ name: "cw_api_request", arguments: { path: "/service/priorities" } });
+    await client.callTool({ name: "cw_api_get", arguments: { path: "/service/priorities" } });
 
     const [url, init] = fetchImpl.mock.calls[0];
     expect(String(url)).toContain("/service/priorities");

@@ -3,9 +3,9 @@
   "manifest_version": "0.4",
   "name": "connectwise-automate",
   "display_name": "ConnectWise Automate",
-  "version": "0.3.1",
-  "description": "ConnectWise Automate (RMM): computers, clients, and read/write escape hatches to the Automate REST API.",
-  "long_description": "ConnectWise Automate (RMM) as a local MCP server. Search and read computers, list clients, and reach any other Automate endpoint through cw_automate_api_request (GET only) and cw_automate_api_write.\n\nEvery tool is named cw_automate_* and shows a Title Case name in the client. Read-only tools carry readOnlyHint; the write escape hatch refuses every call without confirm: true.\n\nThis bundle runs on your own machine and holds the Automate credentials there. PSA and Control ship as separate bundles from the same repository.",
+  "version": "0.4.0",
+  "description": "ConnectWise Automate (RMM): computers, clients, an interactive computers table, and read/write escape hatches to the Automate REST API.",
+  "long_description": "ConnectWise Automate (RMM) as a local MCP server. Search and read computers, list clients, and reach any other Automate endpoint through cw_automate_api_get (GET only) and cw_automate_api_write.\n\nEvery tool is named cw_automate_* and shows a Title Case name in the client. Read-only tools carry readOnlyHint; the write escape hatch refuses every call without confirm: true. cw_automate_view_computers renders an interactive agent table on hosts that support MCP Apps. cw_status_server is always registered and reports exactly which fields are still empty.\n\nThis bundle runs on your own machine and holds the Automate credentials there. PSA and Control ship as separate bundles from the same repository.",
   "author": {
     "name": "DivergeIT"
   },
@@ -25,6 +25,7 @@
   ],
   "license": "MIT",
   "compatibility": {
+    "claude_desktop": ">=1.0.0",
     "platforms": [
       "darwin",
       "win32",
@@ -53,11 +54,16 @@
         "CW_AUTOMATE_URL": "${user_config.automate_url}",
         "CW_AUTOMATE_USERNAME": "${user_config.automate_username}",
         "CW_AUTOMATE_PASSWORD": "${user_config.automate_password}",
-        "CW_AUTOMATE_CLIENT_ID": "${user_config.automate_client_id}"
+        "CW_AUTOMATE_CLIENT_ID": "${user_config.automate_client_id}",
+        "CW_AUTOMATE_TOTP_SECRET": "${user_config.automate_totp_secret}"
       }
     }
   },
   "tools": [
+    {
+      "name": "Server Status",
+      "description": "Report which ConnectWise products are configured and what an unconfigured one still needs"
+    },
     {
       "name": "Search Automate Computers",
       "description": "Search Automate agents (computers)"
@@ -71,12 +77,16 @@
       "description": "List Automate clients (companies)"
     },
     {
-      "name": "Automate API Request",
+      "name": "Automate API Get",
       "description": "GET any Automate endpoint that has no dedicated tool"
     },
     {
       "name": "Automate API Write",
       "description": "POST, PUT, PATCH or DELETE an Automate endpoint, acting on live RMM agents — writes to ConnectWise"
+    },
+    {
+      "name": "View Automate Computers",
+      "description": "Interactive table of Automate agents: online or offline, OS, client and last contact"
     }
   ],
   "user_config": {
@@ -105,6 +115,13 @@
       "required": true,
       "sensitive": true,
       "description": "Automate developer clientId GUID, sent with every Automate request."
+    },
+    "automate_totp_secret": {
+      "type": "string",
+      "title": "Automate TOTP secret",
+      "description": "Only needed when the Automate login account keeps two-factor authentication enabled. Paste the same base32 seed the account's authenticator was enrolled with and the connector generates each passcode itself. The cleaner alternative is a dedicated API service account exempt from two-factor; leave this blank then.",
+      "required": false,
+      "sensitive": true
     }
   }
 }

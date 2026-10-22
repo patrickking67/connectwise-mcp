@@ -3,9 +3,9 @@
   "manifest_version": "0.4",
   "name": "connectwise-control",
   "display_name": "ConnectWise Control",
-  "version": "0.3.1",
-  "description": "ConnectWise Control (ScreenConnect): sessions and a read-only escape hatch to the Control API. Beta.",
-  "long_description": "ConnectWise Control (ScreenConnect) as a local MCP server, in beta. List sessions and reach other Control endpoints through cw_control_api_request (GET only).\n\nEvery tool is named cw_control_* and shows a Title Case name in the client. Both tools are read-only and carry readOnlyHint.\n\nThis bundle runs on your own machine and holds the Control credentials there. PSA and Automate ship as separate bundles from the same repository.",
+  "version": "0.4.0",
+  "description": "ConnectWise Control (ScreenConnect): sessions, an interactive session table, and a confirmed passthrough to the Control API. Beta.",
+  "long_description": "ConnectWise Control (ScreenConnect) as a local MCP server, in beta. List sessions and reach other Control endpoints through cw_control_api_write (GET, and POST with confirm: true).\n\nEvery tool is named cw_control_* and shows a Title Case name in the client. cw_control_list_sessions and cw_control_view_sessions are read-only and carry readOnlyHint; cw_control_api_write requires confirm: true for POST. cw_status_server is always registered and reports exactly which fields are still empty.\n\nThis bundle runs on your own machine and holds the Control credentials there. PSA and Automate ship as separate bundles from the same repository.",
   "author": {
     "name": "DivergeIT"
   },
@@ -25,6 +25,7 @@
   ],
   "license": "MIT",
   "compatibility": {
+    "claude_desktop": ">=1.0.0",
     "platforms": [
       "darwin",
       "win32",
@@ -52,18 +53,27 @@
       "env": {
         "CW_SCREENCONNECT_URL": "${user_config.screenconnect_url}",
         "CW_SCREENCONNECT_USERNAME": "${user_config.screenconnect_username}",
-        "CW_SCREENCONNECT_PASSWORD": "${user_config.screenconnect_password}"
+        "CW_SCREENCONNECT_PASSWORD": "${user_config.screenconnect_password}",
+        "CW_SCREENCONNECT_TOTP_SECRET": "${user_config.screenconnect_totp_secret}"
       }
     }
   },
   "tools": [
     {
+      "name": "Server Status",
+      "description": "Report which ConnectWise products are configured and what an unconfigured one still needs"
+    },
+    {
       "name": "List Control Sessions",
       "description": "List ConnectWise Control host sessions (beta)"
     },
     {
-      "name": "Control API Request",
+      "name": "Control API Write",
       "description": "Call a ConnectWise Control endpoint; POST needs confirm: true (beta) — writes to ConnectWise"
+    },
+    {
+      "name": "View Control Sessions",
+      "description": "Interactive table of Control sessions: machine, user, OS, connected or not, last seen (beta)"
     }
   ],
   "user_config": {
@@ -85,6 +95,13 @@
       "required": true,
       "sensitive": true,
       "description": "Control account password. Supply it from your secret manager."
+    },
+    "screenconnect_totp_secret": {
+      "type": "string",
+      "title": "Control TOTP secret",
+      "description": "Only needed when the Control login account keeps two-factor authentication enabled. Paste the same base32 seed the account's authenticator was enrolled with and the connector generates each one-time code itself. The cleaner alternative is a dedicated API service account exempt from two-factor; leave this blank then.",
+      "required": false,
+      "sensitive": true
     }
   }
 }

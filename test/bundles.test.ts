@@ -3,9 +3,11 @@
 // Three .mcpb bundles are built from this one server: PSA, Automate and Control,
 // each from a manifest under manifests/ that configures exactly one product.
 // Two things make that work, and both are pinned here: the stdio entry starts
-// with any one product configured (it used to insist on PSA), and each product
-// manifest lists exactly that product's tools and asks for exactly that
-// product's credentials.
+// with any one product configured (it used to insist on PSA) — and, since 0.4.0,
+// with nothing configured at all, so cw_status_server can explain what is
+// missing — and each product manifest lists exactly that product's tools plus
+// the always-registered server tools, and asks for exactly that product's
+// credentials.
 //
 // Every credential here is synthetic and no test reaches ConnectWise.
 
@@ -18,7 +20,7 @@ import type { ToolSurface } from "../src/tools/spec.js";
 
 const run = promisify(execFile);
 
-const PRODUCT_ENV: Record<ToolSurface, Record<string, string>> = {
+const PRODUCT_ENV: Record<Exclude<ToolSurface, "server">, Record<string, string>> = {
   psa: {
     CW_PSA_SITE: "api-na.myconnectwise.net",
     CW_PSA_COMPANY_ID: "mock-company",
@@ -62,14 +64,29 @@ async function startStdio(env: Record<string, string>) {
   }
 }
 
-describe("stdio entry startup guard", () => {
-  it("refuses to start with no product configured", async () => {
+describe("stdio entry startup", () => {
+  it("starts with nothing configured and says what to do about it", async () => {
+    // It used to exit here, which is precisely the case a person needs help
+    // with: Claude Desktop then shows "server disconnected" and nothing else.
     const result = await startStdio({});
-    expect(result.refused).toBe(true);
-    expect(result.stderr).toMatch(/no ConnectWise product is configured/);
+    expect(result.refused).toBe(false);
+    expect(result.stderr).toMatch(/running on stdio \(psa=no automate=no control=no\)/);
+    expect(result.stderr).toMatch(/only cw_status_server is registered/);
+    expect(result.stderr).toMatch(/Settings > Extensions/);
   });
 
-  it.each(["psa", "automate", "control"] as ToolSurface[])("starts with only %s configured", async (surface) => {
+  it("starts, rather than dying, when a product's form is half filled", async () => {
+    const result = await startStdio({
+      CW_AUTOMATE_URL: "https://rmm.example",
+      CW_AUTOMATE_PASSWORD: "mock-password-not-real",
+      CW_AUTOMATE_CLIENT_ID: "mock-client-id",
+    });
+    expect(result.refused).toBe(false);
+    expect(result.stderr).toMatch(/CW_AUTOMATE_USERNAME/);
+    expect(result.stderr).toMatch(/Automate username/);
+  });
+
+  it.each(["psa", "automate", "control"] as Array<Exclude<ToolSurface, "server">>)("starts with only %s configured", async (surface) => {
     const result = await startStdio(PRODUCT_ENV[surface]);
     expect(result.refused).toBe(false);
     expect(result.stderr).toMatch(new RegExp(`${surface === "control" ? "control" : surface}=yes`));
@@ -89,17 +106,27 @@ describe("per-product manifests", () => {
     expect(manifest.name).toBe(name);
     expect(manifest.version).toBe(root.version);
 
-    const expected = TOOL_CATALOG.filter((tool) => tool.surface === surface).map((tool) => tool.title);
+    const expected = TOOL_CATALOG.filter(
+      (tool) => tool.surface === surface || tool.surface === "server",
+    ).map((tool) => tool.title);
     expect(manifest.tools.map((tool: { name: string }) => tool.name)).toEqual(expected);
 
     const env = manifest.server.mcp_config.env as Record<string, string>;
     expect(Object.keys(env).length).toBeGreaterThan(0);
     for (const variable of Object.keys(env)) expect(variable.startsWith(envPrefix)).toBe(true);
     // Every credential the bundle asks for is required: there is no optional
-    // product in a single-product bundle.
-    for (const field of Object.values(manifest.user_config) as Array<{ required: boolean; title: string }>) {
-      expect(field.required).toBe(true);
-      expect(field.title).not.toMatch(/optional/i);
+    // product in a single-product bundle. The one exception is the two-factor
+    // seed, which most accounts should not need.
+    for (const [key, field] of Object.entries(manifest.user_config) as Array<
+      [string, { required: boolean; title: string; sensitive?: boolean }]
+    >) {
+      if (key.endsWith("_totp_secret")) {
+        expect(field.required, key).toBe(false);
+        expect(field.sensitive, key).toBe(true);
+        continue;
+      }
+      expect(field.required, key).toBe(true);
+      expect(field.title, key).not.toMatch(/optional/i);
     }
     expect(manifest.icon).toBe(`assets/connectwise-${surface}-512.png`);
   });

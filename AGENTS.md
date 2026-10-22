@@ -20,17 +20,22 @@ ConnectWise Manage MCP Server: ConnectWise PSA (Manage) plus optional Automate (
 - `src/index.ts` — HTTP entry: Express app, `/healthz`, `/mcp` + `/mcp/:token`, bearer/path-token auth (timing-safe), fresh server+transport per request, fail-closed startup guard, SIGTERM drain
 - `manifest.json` — MCPB bundle manifest for the local stdio install; CI asserts it lists exactly the tools the server registers
 - `infra/main.bicep` — the Azure Container Apps topology (see docs/deploying-azure.md)
-- `src/stdio.ts` — local stdio entry
-- `src/server.ts` — `createServer(config, deps)`; server instructions document PSA condition syntax
+- `src/stdio.ts` — local stdio entry. It **always starts**, even with nothing configured or with a configuration that fails to load, so `cw_status_server` can explain what is missing; it used to exit, which is exactly the case a person needs help with
+- `src/server.ts` — `createServer(config, deps, options)`; registers `cw_status_server` unconditionally, then each configured product's tools and views; server instructions document PSA condition syntax
 - `src/config.ts` — env parsing; `normalizePsaSite` adds the `api-` prefix for cloud hosts
 - `src/lib/psa-client.ts` — PSA REST client: Basic auth (`companyId+publicKey:privateKey`), `clientId` header, 429 retry honoring Retry-After (capped), one 5xx retry, Link-header pagination, `CwApiError`
 - `src/lib/automate-client.ts` — Automate client: token via `/cwa/api/v1/apitoken`, cached, refreshed on 401
+- `src/lib/totp.ts` — RFC 6238 TOTP on `node:crypto` only (base32 decode, HOTP, 30s step, 6 digits, SHA-1) plus `looksLikeTwoFactorChallenge`. Used when an Automate or Control login account keeps two-factor enabled; the preferred answer is still a dedicated API service account exempt from 2FA
 - `src/lib/screenconnect-client.ts` — Control (ScreenConnect) client, BETA: forms-auth login + cookie/antiforgery, generic passthrough; endpoint shapes are version-dependent
 - `src/tools/spec.ts` — the one way a tool is defined: `cw_` name convention, Title Case display titles, `read`/`write` kinds -> MCP annotations, `_meta` (MCP Apps `ui`, `openai/outputTemplate`, `anthropic/requiresUserInteraction`). `registerSpecTool` is the only registration path
 - `src/tools/catalog.ts` — every tool spec, independent of configuration; the generated docs and the manifest are built from it
-- `src/ui/ticket-card.ts` — the MCP Apps ticket card (`ui://connectwise-manage/ticket-card`, `text/html;profile=mcp-app`) and its resource registration
+- `src/version.ts` — `SERVER_NAME` / `SERVER_VERSION`, the one place the version is written
+- `src/tools/status.ts` — `cw_status_server`, registered whatever is configured; reports missing env vars with their Claude Desktop **Settings → Extensions** field titles
+- `src/apps/shell.ts` — the MCP Apps view shell: `BASE_CSS`, `BOOT_JS`, `renderPage`, `viewSpec`, `registerView`. Every view is one self-contained themed HTML document (light and dark), no CDN
+- `src/apps/generated/runtime.ts` — GENERATED: the inlined `@modelcontextprotocol/ext-apps` browser runtime. Regenerate with `npm run apps:runtime`; `npm run apps:check` fails when stale
+- `src/apps/views/*.ts` — the six views: `ticket` (`cw_get_ticket`, with the add-note box and the `window.openai` ChatGPT fallback), `board`, `company`, `time`, `automate-computers`, `control-sessions`
 - `scripts/sync-tool-docs.ts` — regenerates `docs/TOOLS.md`, the README tool table and `manifest.json`'s tool list from the catalog
-- `src/tools/psa.ts` — `SEARCHES` spec array drives the search tools; bespoke tools for ticket/company/time/expense/board workflows; `cw_api_request` (GET) and `cw_api_write` (guarded) escape hatches
+- `src/tools/psa.ts` — `SEARCHES` spec array drives the search tools; bespoke tools for ticket/company/time/expense/board workflows; `cw_api_get` (GET) and `cw_api_write` (guarded) escape hatches
 - `src/tools/automate.ts` — Automate tools, registered only when configured
 - `src/tools/screenconnect.ts` — Control tools (beta), registered only when `CW_SCREENCONNECT_*` is set
 - `test/` — vitest; server tests run end-to-end through `InMemoryTransport` with injected `fetchImpl`
@@ -41,6 +46,7 @@ ConnectWise Manage MCP Server: ConnectWise PSA (Manage) plus optional Automate (
 - `npm run build` — tsc to `dist/`
 - `npm test` — vitest run
 - `npm run typecheck` — tsc over src + test (tsconfig.test.json)
+- `npm run apps:runtime` / `npm run apps:check` — regenerate / verify the inlined MCP Apps browser runtime
 - `npm run mcpb:pack` — build the three per-product bundles (`dist/connectwise-{psa,automate,control}.mcpb`) from `manifests/`; `npm run mcpb:pack:suite` builds the all-in-one bundle from the root `manifest.json`; `npm run mcpb:validate` checks the root manifest
 - `npm run start:remote` — run the HTTP entry from `dist/`
 - `npm run docker:build` — build the remote transport's image
@@ -50,10 +56,12 @@ ConnectWise Manage MCP Server: ConnectWise PSA (Manage) plus optional Automate (
 
 - Tool results: `jsonResult()` (compact JSON, nulls stripped) and `errorResult()`; wrap handlers in `safeHandler` so API failures become tool errors, never protocol errors
 - Search tools default to compact `fields` lists; `fields: "all"` returns full records — keep default field lists limited to names verified against the OpenAPI spec (`All.json` in the 2026.4 SDK download)
-- Tool names are `cw_` + snake_case (`cw_automate_*` and `cw_control_*` for those modules). Display titles are Title Case and derived from the name; override `title` only when the derived one reads badly
+- Tool names are `<prefix>_<verb>_<noun>`: `cw_` + snake_case (`cw_automate_*` and `cw_control_*` for those modules). **The verb declares the kind** — reads use `list`/`get`/`search`/`find`/`test`/`status`/`report`/`plan`, writes use `create`/`update`/`set`/`run`/`send`/`add`/… , and `view` is reserved for interactive views and nothing else. The raw passthroughs are `*_api_get` (read) and `*_api_write` (write). `test/tool-contract.test.ts` enforces this; renaming a tool means adding a row to `docs/tool-renames.md`
+- Display titles are Title Case and derived from the name; override `title` only when the derived one reads badly
 - Never call `server.registerTool` directly — go through `registerSpecTool`, which is what guarantees a title, annotations on every tool, and the `_meta` a host needs
 - Declare a `kind`: `read` gets `readOnlyHint`; `write` declares `destructive`/`idempotent` explicitly. Hosts gate on this (Microsoft 365 Copilot treats an unannotated tool as destructive), and Claude parallelizes only read-only calls
-- Interactive tools are read or write tools that also declare a `ui://` resource and return `uiResult()` (text + `structuredContent`); the JSON path must keep working for hosts without MCP Apps
+- Interactive tools are read tools that also declare a `ui://connectwise/<view>.html` resource and return `uiResult()` (text + `structuredContent`); the JSON path must keep working for hosts without MCP Apps
+- Add a view by writing a `ViewDefinition` under `src/apps/views/` and registering it through `registerView` — never hand-roll a resource. Keep it one document: no CDN, no framework, theme-aware in light **and** dark, header counts, filterable/sortable tables, `.empty`/`.error` states. Buttons in a view may only call this server's own guarded write tools
 - New searchable PSA entities: add a `SEARCHES` entry, not a hand-rolled tool
 - After touching any tool, run `npm run tools:sync` and commit the regenerated docs
 - Inject `fetchImpl`/`sleep` through `ClientDeps` for testability; never hit the network in tests
@@ -64,7 +72,7 @@ ConnectWise Manage MCP Server: ConnectWise PSA (Manage) plus optional Automate (
 - `MCP_AUTH_TOKEN` gates the endpoint; comparisons are timing-safe; keep the path-token route working (claude.ai custom connectors cannot send headers)
 - The HTTP entry **fails closed**: with neither `MCP_AUTH_TOKEN` nor Entra configured it exits non-zero rather than serving. `MCP_ALLOW_ANONYMOUS=true` overrides it for local testing only. Do not remove that guard — this server writes.
 - Entra per-user auth (`src/lib/entra-auth.ts`): validates Entra v2 JWTs via jose when `AZURE_TENANT_ID`/`AZURE_CLIENT_ID` are set; serves `/.well-known/oauth-protected-resource`; coexists with the shared token — setup in docs/ENTRA_SETUP.md
-- The read escape hatches (`cw_api_request`, `cw_automate_api_request`) issue GET only. `cw_api_write` must refuse DELETE without `confirm: true`, `cw_automate_api_write` refuses every call without it, and `cw_control_api_request` refuses POST without it — do not weaken these guardrails. Annotations are hints; these checks are the enforcement
+- The read escape hatches (`cw_api_get`, `cw_automate_api_get`) issue GET only. `cw_api_write` must refuse DELETE without `confirm: true`, `cw_automate_api_write` refuses every call without it, and `cw_control_api_write` refuses POST without it — do not weaken these guardrails. Annotations are hints; these checks are the enforcement
 - Do not deploy or push from this repo without being explicitly asked
 
 ## AI configuration maintenance
@@ -83,5 +91,8 @@ ConnectWise Manage MCP Server: ConnectWise PSA (Manage) plus optional Automate (
 - `npm test`, `npm run typecheck`, and `npm run tools:check` pass.
 - `npm run tools:sync` was run after any tool change and the regenerated docs
   are committed.
+- The server starts with **no** environment set and answers `tools/list` with
+  `cw_status_server`; a partly configured product fails with a message naming the
+  missing variables and their Settings → Extensions fields.
 - Security guardrails (fail-closed startup, `confirm: true` gates, timing-safe
   token comparison) are intact.

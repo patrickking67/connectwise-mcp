@@ -32,8 +32,8 @@ const SPECS = {
     surface: "automate",
     kind: "read",
   },
-  apiRequest: {
-    name: "cw_automate_api_request",
+  apiGet: {
+    name: "cw_automate_api_get",
     summary: "GET any Automate endpoint that has no dedicated tool",
     surface: "automate",
     kind: "read",
@@ -140,7 +140,7 @@ export function registerAutomateTools(server: McpServer, client: AutomateClient)
 
   registerSpecTool<{ path: string; query?: Record<string, string> }>(
     server,
-    SPECS.apiRequest,
+    SPECS.apiGet,
     {
       description:
         "Read-only escape hatch to the ConnectWise Automate REST API (paths relative to /cwa/api/v1). GET only. Examples: /Scripts; /Computers/123/Alerts; /Monitors. Use cw_automate_api_write to change anything.",

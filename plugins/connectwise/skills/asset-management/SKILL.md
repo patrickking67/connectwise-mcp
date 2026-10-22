@@ -11,7 +11,7 @@ Answer "what do we manage for this client" and find specific devices fast.
 ## Tools
 
 - `cw_search_configurations` — managed devices/assets (servers, workstations, network gear, etc.)
-- `cw_api_request` — configuration types (`/company/configurations/types`) and anything else under `/company/configurations/*`
+- `cw_api_get` — configuration types (`/company/configurations/types`) and anything else under `/company/configurations/*`
 
 ## Workflow
 
