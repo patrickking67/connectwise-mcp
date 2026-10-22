@@ -12,7 +12,7 @@
     {
       "name": "connectwise",
       "source": "./plugins/connectwise",
-      "description": "Run ConnectWise PSA (Manage), Automate (RMM), and Control (ScreenConnect) from your AI assistant: tickets, companies, contacts, configurations, time, expenses, agreements, projects, procurement, sales, and dispatch \u2014 plus 13 MSP workflow skills.",
+      "description": "Run ConnectWise PSA (Manage), Automate (RMM), and Control (ScreenConnect) from your AI assistant: tickets, companies, contacts, configurations, time, expenses, agreements, projects, procurement, sales, and dispatch \u2014 plus 16 MSP workflow skills and an Automate script reviewer.",
       "version": "0.1.0",
       "category": "productivity",
       "keywords": [

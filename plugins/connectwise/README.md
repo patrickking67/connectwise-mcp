@@ -4,7 +4,7 @@ Run **ConnectWise PSA (Manage)**, **Automate (RMM)**, and **Control (ScreenConne
 
 ## What you get
 
-**13 skills** (auto-activate when relevant):
+**16 skills** (auto-activate when relevant):
 
 | Skill | For |
 | --- | --- |
@@ -21,6 +21,11 @@ Run **ConnectWise PSA (Manage)**, **Automate (RMM)**, and **Control (ScreenConne
 | Dispatch & Scheduling | Calendar, tech availability |
 | RMM (Automate) | Managed endpoints, online/offline, detail |
 | Remote Support (ScreenConnect) | Remote-access sessions (beta) |
+| Automate Script Authoring | Build sheets and Windows/macOS payloads for Automate deployment scripts |
+| Automate Script Review | `/automate-script-review <file>`: lint payloads for injection, result-contract and platform bugs |
+| Automate EDF Report | `/automate-edf-report [client]`: read-only rollup of a deployment's status EDFs |
+
+**Agent:** `automate-script-reviewer`, a read-only security and correctness review of Automate payloads and row tables.
 
 **Commands:** `/cw-status` (connectivity + what's enabled) · `/cw-triage [board|company]` (triage the service board)
 
