@@ -8,3 +8,8 @@ dist/
 
 # Packed MCPB bundle — a build artifact, attached to a release rather than tracked.
 *.mcpb
+
+# wrangler local state and local secrets for `wrangler dev`
+.wrangler/
+.dev.vars
+.dev.vars.*

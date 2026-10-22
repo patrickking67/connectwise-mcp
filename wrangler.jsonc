@@ -1,0 +1,41 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "connectwise-psa-mcp",
+  "account_id": "575e64e08663d68598105d82793c88ff",
+  // Built by `npm run build` first; the worker:* scripts do that. Deploying the
+  // same compiled output the tests import means what was tested is what runs.
+  "main": "dist/worker/index.js",
+  "compatibility_date": "2026-09-01",
+  // nodejs_compat gives the vendor client node:crypto and friends, and (since the
+  // 2025-04-01 compatibility date) populates process.env from the bindings.
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  // One hostname per Worker, on the DivergeIT Consulting zone. Access covers the
+  // workers.dev hostname and this one alike when its application targets the Worker.
+  "routes": [{ "pattern": "connectwise-psa-mcp.divergeitconsulting.com", "custom_domain": true }],
+  // Workers Logs and traces, persisted, unsampled. The entitlement layer writes one
+  // JSON line per tool call (tool, tier, caller, outcome, duration); never arguments.
+  "observability": {
+    "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": true, "persist": true },
+    "traces": { "enabled": true, "head_sampling_rate": 1, "persist": true }
+  },
+  // Plain vars. The vendor gate here is the CEILING for every caller; the
+  // MCP_*_PRINCIPALS lists narrow it per Access identity (emails, @domains or Access
+  // group names, comma-separated). Secrets (CW_PSA_SITE, CW_PSA_COMPANY_ID, CW_PSA_PUBLIC_KEY, CW_PSA_PRIVATE_KEY, CW_PSA_CLIENT_ID) are set with
+  // `wrangler secret put` / `wrangler secret bulk` and never appear in this file.
+  "vars": {
+    "MCP_WRITE_PRINCIPALS": "patrickk@divergeit.com",
+    "MCP_DESTRUCTIVE_PRINCIPALS": "patrickk@divergeit.com",
+    "MCP_HIDE_UNENTITLED_TOOLS": "true"
+  },
+  // Local only: `wrangler dev` simulates Access with this identity so the Worker can
+  // be exercised without a tunnel. Production ignores it; ctx.access comes from the
+  // real Access application there.
+  "access": {
+    "dev": {
+      "aud": "local-dev-aud",
+      "identity": { "email": "patrickk@divergeit.com", "name": "Local developer", "groups": [] }
+    }
+  }
+}
