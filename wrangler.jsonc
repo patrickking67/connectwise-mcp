@@ -25,8 +25,8 @@
   // group names, comma-separated). Secrets (CW_PSA_SITE, CW_PSA_COMPANY_ID, CW_PSA_PUBLIC_KEY, CW_PSA_PRIVATE_KEY, CW_PSA_CLIENT_ID) are set with
   // `wrangler secret put` / `wrangler secret bulk` and never appear in this file.
   "vars": {
-    "MCP_WRITE_PRINCIPALS": "patrickk@divergeit.com",
-    "MCP_DESTRUCTIVE_PRINCIPALS": "patrickk@divergeit.com",
+    "MCP_WRITE_PRINCIPALS": "patrickk@divergeit.com,patrickking673@gmail.com,pg.king@icloud.com",
+    "MCP_DESTRUCTIVE_PRINCIPALS": "patrickk@divergeit.com,patrickking673@gmail.com,pg.king@icloud.com",
     "MCP_HIDE_UNENTITLED_TOOLS": "true"
   },
   // Local only: `wrangler dev` simulates Access with this identity so the Worker can
