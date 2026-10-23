@@ -85,7 +85,11 @@ export function createWorkerHandler(options: WorkerOptions): WorkerHandler {
           endpoint: `${url.origin}${MCP_PATH}`,
         });
       }
-      if (url.pathname !== MCP_PATH) return json(404, { error: 'not_found', endpoint: `${url.origin}${MCP_PATH}` });
+      // A connector saved with the bare hostname calls "/", so it answers exactly like /mcp
+      // rather than with a 404 the client reports as "no MCP server found".
+      if (url.pathname !== MCP_PATH && url.pathname !== '/') {
+        return json(404, { error: 'not_found', endpoint: `${url.origin}${MCP_PATH}` });
+      }
       if (request.method !== 'POST') {
         // Stateless JSON mode has no server-initiated stream to GET and no session to DELETE.
         return json(405, { error: 'method_not_allowed', message: 'This MCP endpoint accepts POST only.' }, { allow: 'POST' });

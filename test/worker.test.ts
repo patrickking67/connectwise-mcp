@@ -102,6 +102,18 @@ describe("Worker entry point", () => {
     expect(elsewhere.status).toBe(404);
   });
 
+  it("treats the bare hostname as an alias for /mcp, for connectors saved without the path", async () => {
+    const root = `https://${SERVICE}.example/`;
+    const listed = await worker.fetch(
+      new Request(root, { method: "POST", headers, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }) }),
+      { ...VENDOR_ENV },
+      ctxFor(READER),
+    );
+    expect(listed.status, await listed.clone().text()).toBe(200);
+    const get = await worker.fetch(new Request(root, { method: "GET" }), {}, ctxFor(READER));
+    expect(get.status).toBe(405);
+  });
+
   it("fails closed with 503 when Access is not in front", async () => {
     const response = await rpc({}, undefined, "tools/list");
     expect(response.status).toBe(503);
