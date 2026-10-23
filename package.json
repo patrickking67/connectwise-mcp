@@ -27,6 +27,8 @@
     "worker:dev": "npm run build && wrangler dev",
     "worker:check": "npm run build && wrangler deploy --dry-run",
     "worker:deploy": "npm run build && wrangler deploy",
+    "worker:check:automate": "npm run build && wrangler deploy --dry-run --config wrangler.automate.jsonc",
+    "worker:deploy:automate": "npm run build && wrangler deploy --config wrangler.automate.jsonc",
     "access:setup": "node scripts/access-app.mjs"
   },
   "dependencies": {

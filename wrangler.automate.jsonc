@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // The Automate Worker. Same code and settings as wrangler.jsonc (the PSA Worker),
+  // different entry point, name, hostname and secrets. Deploy with
+  // `npm run worker:deploy:automate`.
+  "name": "connectwise-automate-mcp",
+  "account_id": "575e64e08663d68598105d82793c88ff",
+  "main": "dist/worker/automate.js",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [{ "pattern": "connectwise-automate-mcp.divergeitconsulting.com", "custom_domain": true }],
+  "observability": {
+    "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": true, "persist": true },
+    "traces": { "enabled": true, "head_sampling_rate": 1, "persist": true }
+  },
+  // Plain vars. No CW_AUTOMATE_MODE here, so the vendor gate keeps every caller
+  // read-only, as the PSA Worker does; set CW_AUTOMATE_MODE=write (and
+  // CW_AUTOMATE_ALLOW_DESTRUCTIVE=true for reboots and uninstalls) to raise the
+  // ceiling. Secrets (CW_AUTOMATE_URL, CW_AUTOMATE_USERNAME, CW_AUTOMATE_PASSWORD,
+  // CW_AUTOMATE_CLIENT_ID) are set with
+  // `wrangler secret put --config wrangler.automate.jsonc` and never appear here.
+  "vars": {
+    "MCP_WRITE_PRINCIPALS": "patrickk@divergeit.com,patrickking673@gmail.com,pg.king@icloud.com",
+    "MCP_DESTRUCTIVE_PRINCIPALS": "patrickk@divergeit.com,patrickking673@gmail.com,pg.king@icloud.com",
+    "MCP_HIDE_UNENTITLED_TOOLS": "true"
+  },
+  "access": {
+    "dev": {
+      "aud": "local-dev-aud",
+      "identity": { "email": "patrickk@divergeit.com", "name": "Local developer", "groups": [] }
+    }
+  }
+}
