@@ -61,6 +61,17 @@ npx wrangler secret bulk /path/to/secrets.json
 
 Secrets this Worker reads: `CW_PSA_SITE`, `CW_PSA_COMPANY_ID`, `CW_PSA_PUBLIC_KEY`, `CW_PSA_PRIVATE_KEY`, `CW_PSA_CLIENT_ID` (PSA only; Automate stays unconfigured on this Worker).
 
+### The Automate Worker
+
+Automate is a second Worker, `connectwise-automate-mcp` on
+`connectwise-automate-mcp.divergeitconsulting.com`, built from `src/worker/automate.ts` and
+configured by `wrangler.automate.jsonc`, so each product is its own connector. Deploy it
+with `npm run worker:deploy:automate`, and pass `--config wrangler.automate.jsonc` to every
+`wrangler secret` command for it. Secrets it reads: `CW_AUTOMATE_URL`,
+`CW_AUTOMATE_USERNAME`, `CW_AUTOMATE_PASSWORD`, `CW_AUTOMATE_CLIENT_ID`; use an integrator
+login, which is exempt from two-factor. It is read-only until `CW_AUTOMATE_MODE=write` is
+added to its vars. It needs its own Access application, set up as below.
+
 ## Put it behind Access (once per Worker)
 
 Access needs a Zero Trust organization (a team name) on the account. Then:
