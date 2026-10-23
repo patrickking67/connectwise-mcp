@@ -61,6 +61,13 @@ To act on a machine: cw_automate_list_scripts -> cw_automate_run_script, or cw_a
 cw_automate_get_computer_script_history. Automate's REST API cannot acknowledge or clear alerts and
 cannot edit a computer record; say so rather than reaching for cw_automate_api_write.`;
 
+// A public URL rather than a data: URI: everything on the MCP hostname sits behind
+// Cloudflare Access, and clients fetch icons without credentials. The file is served
+// from the mcp-icons R2 bucket.
+const SERVER_ICONS = [
+  { src: "https://mcp-icons.divergeitconsulting.com/connectwise.png", mimeType: "image/png", sizes: ["512x512"] },
+];
+
 export interface ServerOptions {
   /** Why the configuration could not be loaded, when it could not. Reported by cw_status_server. */
   configError?: string;
@@ -82,7 +89,7 @@ export function createServer(
   options: ServerOptions = {},
 ): McpServer {
   const server = new McpServer(
-    { name: SERVER_NAME, version: SERVER_VERSION },
+    { name: SERVER_NAME, version: SERVER_VERSION, icons: SERVER_ICONS },
     { instructions: INSTRUCTIONS },
   );
   // Before any tool is registered: write tools look their gate up per call.
