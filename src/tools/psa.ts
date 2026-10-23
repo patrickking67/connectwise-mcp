@@ -1,9 +1,10 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { PsaClient, buildPatchOps, type ListParams } from "../lib/psa-client.js";
-import { jsonResult, uiResult, errorResult } from "../lib/format.js";
+import { jsonResult, errorResult } from "../lib/format.js";
 import { registerSpecTool, type ToolSpec } from "./spec.js";
-import { TICKET_CARD_URI } from "../ui/ticket-card.js";
+import { registerTicketCard, TICKET_VIEW_SPEC } from "../apps/index.js";
+import { summarizeProjectTickets } from "../lib/project-summary.js";
 
 const pageShape = {
   page: z.number().int().min(1).optional().describe("Page number (default 1)"),
@@ -145,6 +146,32 @@ const SEARCHES: SearchSpec[] = [
     defaultFields: "id,poNumber,status/name,vendorCompany/identifier,shipmentDate,total,closedFlag",
   },
   {
+    name: "cw_search_catalog_items",
+    summary: "Search the procurement product catalog",
+    surface: "psa",
+    kind: "read",
+    path: "/procurement/catalog",
+    description:
+      "Search the PSA procurement catalog — the products and services you sell or stock — by identifier, description, manufacturer part number or vendor. Prices and costs are the catalog defaults.",
+    conditionHint:
+      'identifier like "M365%", description contains "laptop", manufacturerPartNumber="20XW004", inactiveFlag=false, category/name="Hardware"',
+    defaultFields:
+      "id,identifier,description,category/name,subcategory/name,type/name,manufacturer/name,manufacturerPartNumber,vendor/identifier,price,cost,inactiveFlag",
+  },
+  {
+    name: "cw_search_products",
+    summary: "Search products sold on tickets, projects, opportunities and agreements",
+    surface: "psa",
+    kind: "read",
+    path: "/procurement/products",
+    description:
+      "Search PSA procurement products — catalog items attached to a ticket, project, opportunity, sales order or agreement — with quantity, price, cost and whether they still need to be purchased.",
+    conditionHint:
+      'company/identifier="acme", catalogItem/identifier="M365-BP", needToPurchaseFlag=true, cancelledFlag=false, agreement/id=42',
+    defaultFields:
+      "id,catalogItem/identifier,description,quantity,price,cost,extPrice,company/identifier,agreement/name,invoice/identifier,needToPurchaseFlag,cancelledFlag",
+  },
+  {
     name: "cw_search_expenses",
     summary: "Search expense entries",
     surface: "psa",
@@ -224,21 +251,12 @@ const SEARCHES: SearchSpec[] = [
 
 /** Tools that are not one of the spec-driven searches. Order matches registration order. */
 const WORKFLOW_SPECS = {
-  systemInfo: {
-    name: "cw_system_info",
-    title: "PSA System Info",
+  systemStatus: {
+    name: "cw_status_system",
+    title: "PSA System Status",
     summary: "Read instance version and cloud/on-prem status — the cheap credentials check",
     surface: "psa",
     kind: "read",
-  },
-  getTicket: {
-    name: "cw_get_ticket",
-    summary: "Open one ticket as an interactive card, with its notes",
-    surface: "psa",
-    kind: "read",
-    ui: TICKET_CARD_URI,
-    invoking: "Opening the ticket…",
-    invoked: "Ticket opened.",
   },
   getTicketNotes: {
     name: "cw_get_ticket_notes",
@@ -257,7 +275,8 @@ const WORKFLOW_SPECS = {
     summary: "Update fields on a service ticket",
     surface: "psa",
     kind: "write",
-    destructive: true,
+    // An edit, not a removal: the write tier. Clearing a field is still a field edit.
+    destructive: false,
     idempotent: true,
   },
   addTicketNote: {
@@ -310,9 +329,34 @@ const WORKFLOW_SPECS = {
     surface: "psa",
     kind: "read",
   },
-  apiRequest: {
-    name: "cw_api_request",
-    title: "PSA API Request",
+  getConfiguration: {
+    name: "cw_get_configuration",
+    summary: "Get one configuration (managed asset) with its questions and custom fields",
+    surface: "psa",
+    kind: "read",
+  },
+  getContact: {
+    name: "cw_get_contact",
+    summary: "Get one contact with every phone and email",
+    surface: "psa",
+    kind: "read",
+  },
+  getProject: {
+    name: "cw_get_project",
+    summary: "Get one project with its phases, team and ticket progress",
+    surface: "psa",
+    kind: "read",
+  },
+  getPurchaseOrder: {
+    name: "cw_get_purchase_order",
+    title: "Get Purchase Order",
+    summary: "Get one purchase order with its line items and receiving status",
+    surface: "psa",
+    kind: "read",
+  },
+  apiGet: {
+    name: "cw_api_get",
+    title: "PSA API Get",
     summary: "GET any PSA endpoint that has no dedicated tool",
     surface: "psa",
     kind: "read",
@@ -328,7 +372,13 @@ const WORKFLOW_SPECS = {
   },
 } satisfies Record<string, ToolSpec>;
 
-export const PSA_TOOL_SPECS: ToolSpec[] = [...SEARCHES, ...Object.values(WORKFLOW_SPECS)];
+/** Registration order: the searches, then the workflow tools with the ticket card where it has always been. */
+export const PSA_TOOL_SPECS: ToolSpec[] = [
+  ...SEARCHES,
+  WORKFLOW_SPECS.systemStatus,
+  TICKET_VIEW_SPEC,
+  ...Object.values(WORKFLOW_SPECS).filter((spec) => spec !== WORKFLOW_SPECS.systemStatus),
+];
 
 function registerSearchTools(server: McpServer, client: PsaClient): void {
   for (const spec of SEARCHES) {
@@ -371,7 +421,7 @@ export function registerPsaTools(server: McpServer, client: PsaClient): void {
 
   registerSpecTool(
     server,
-    WORKFLOW_SPECS.systemInfo,
+    WORKFLOW_SPECS.systemStatus,
     {
       description:
         "Get ConnectWise PSA instance info (version, cloud/on-prem). Cheap connectivity and credentials check.",
@@ -379,27 +429,8 @@ export function registerPsaTools(server: McpServer, client: PsaClient): void {
     async () => jsonResult(await client.get("/system/info")),
   );
 
-  registerSpecTool<{ id: number; includeNotes?: boolean }>(
-    server,
-    WORKFLOW_SPECS.getTicket,
-    {
-      description:
-        "Get one service ticket by id with full detail, including its notes by default. Hosts that support MCP Apps render the result as an interactive ticket card with an in-card internal note box; every other host gets the same JSON.",
-      inputSchema: {
-        id: z.number().int().describe("Ticket id"),
-        includeNotes: z.boolean().optional().describe("Also fetch the ticket's notes (default true)"),
-      },
-    },
-    async ({ id, includeNotes }) => {
-      const ticket = await client.get(`/service/tickets/${id}`);
-      if (includeNotes === false) return uiResult({ ticket });
-      const notes = await client.getList(`/service/tickets/${id}/allNotes`, { pageSize: 25 });
-      return uiResult({
-        ticket,
-        notes: { count: notes.items.length, hasMore: notes.hasMore, items: notes.items },
-      });
-    },
-  );
+  // The ticket card: cw_get_ticket, an interactive read tool rendered by the apps shell.
+  registerTicketCard(server, client);
 
   registerSpecTool<{ ticketId: number; page?: number; pageSize?: number }>(
     server,
@@ -746,6 +777,82 @@ export function registerPsaTools(server: McpServer, client: PsaClient): void {
     },
   );
 
+  registerSpecTool<{ id: number }>(
+    server,
+    WORKFLOW_SPECS.getConfiguration,
+    {
+      description:
+        "Get one PSA configuration (managed asset: server, workstation, firewall, licence…) by id with full detail: type, status, company, contact, serial/model/tag, warranty, vendor, configuration questions and custom fields. Find ids with cw_search_configurations.",
+      inputSchema: { id: z.number().int().describe("Configuration id") },
+    },
+    async ({ id }) => jsonResult(await client.get(`/company/configurations/${id}`)),
+  );
+
+  registerSpecTool<{ id: number }>(
+    server,
+    WORKFLOW_SPECS.getContact,
+    {
+      description:
+        "Get one PSA contact by id with full detail, including every communication item (phones, emails), types, company and site. Find ids with cw_search_contacts.",
+      inputSchema: { id: z.number().int().describe("Contact id") },
+    },
+    async ({ id }) => jsonResult(await client.get(`/company/contacts/${id}`)),
+  );
+
+  registerSpecTool<{ id: number; includeTickets?: boolean }>(
+    server,
+    WORKFLOW_SPECS.getProject,
+    {
+      description:
+        "Get one PSA project by id: the project record (status, manager, dates, budget vs actual hours, percent complete), its phases (WBS, status, scheduled/actual hours), team members, and its project tickets grouped by phase and open/closed. includeTickets=true also returns the ticket rows.",
+      inputSchema: {
+        id: z.number().int().describe("Project id (cw_search_projects)"),
+        includeTickets: z.boolean().optional().describe("Return the project ticket rows too (default false)"),
+      },
+    },
+    async ({ id, includeTickets }) => {
+      const [project, phases, team, tickets] = await Promise.all([
+        client.get(`/project/projects/${id}`),
+        client.getList(`/project/projects/${id}/phases`, { pageSize: 200 }),
+        client.getList(`/project/projects/${id}/teamMembers`, { pageSize: 200 }).catch(() => undefined),
+        client.getList(`/project/tickets`, {
+          conditions: `project/id=${id}`,
+          fields: "id,summary,wbsCode,phase/id,phase/name,status/name,owner/identifier,closedFlag,budgetHours,actualHours",
+          pageSize: 1000,
+        }),
+      ]);
+      return jsonResult({
+        project,
+        phases: phases.items,
+        team: team?.items,
+        tickets: summarizeProjectTickets(tickets.items as Array<Record<string, unknown>>),
+        ticketRows: includeTickets ? tickets.items : undefined,
+        ticketsTruncated: tickets.hasMore || undefined,
+      });
+    },
+  );
+
+  registerSpecTool<{ id: number }>(
+    server,
+    WORKFLOW_SPECS.getPurchaseOrder,
+    {
+      description:
+        "Get one PSA purchase order by id with every line item: product, quantity ordered and received, unit and extended cost, backordered/cancelled flags and received status. Find ids with cw_search_purchase_orders.",
+      inputSchema: { id: z.number().int().describe("Purchase order id") },
+    },
+    async ({ id }) => {
+      const [order, lines] = await Promise.all([
+        client.get(`/procurement/purchaseorders/${id}`),
+        client.getList(`/procurement/purchaseorders/${id}/lineitems`, { pageSize: 1000 }),
+      ]);
+      const items = lines.items as Array<Record<string, unknown>>;
+      const outstanding = items.filter(
+        (l) => !l.canceledFlag && Number(l.receivedQuantity ?? 0) < Number(l.quantity ?? 0),
+      ).length;
+      return jsonResult({ order, lineItems: items, summary: { lines: items.length, outstanding } });
+    },
+  );
+
   const psaPath = z
     .string()
     .regex(/^\//, "path must start with /")
@@ -753,7 +860,7 @@ export function registerPsaTools(server: McpServer, client: PsaClient): void {
 
   registerSpecTool<{ path: string; query?: Record<string, string> }>(
     server,
-    WORKFLOW_SPECS.apiRequest,
+    WORKFLOW_SPECS.apiGet,
     {
       description:
         "Read-only escape hatch to the full ConnectWise PSA REST API (1,800+ endpoints) when no dedicated tool fits. GET only. Examples: /service/priorities; /system/departments; /sales/stages; /procurement/purchaseorders. List endpoints accept query params conditions/fields/orderBy/page/pageSize. Prefer the dedicated tools when one exists; use cw_api_write to change anything.",
@@ -779,7 +886,7 @@ export function registerPsaTools(server: McpServer, client: PsaClient): void {
     WORKFLOW_SPECS.apiWrite,
     {
       description:
-        "Write escape hatch to the ConnectWise PSA REST API for endpoints with no dedicated tool. Every call changes live PSA data, so hosts are asked to confirm each one, and DELETE additionally requires confirm: true. Use the dedicated write tools when one exists.",
+        "Write escape hatch to the ConnectWise PSA REST API for endpoints with no dedicated tool. Every call changes live PSA data, so it is the disruptive tier: it needs CW_PSA_MODE=write and CW_PSA_ALLOW_DESTRUCTIVE=true, hosts ask a person on every call, and confirm: true is required. Use the dedicated write tools when one exists.",
       inputSchema: {
         method: z.enum(["POST", "PUT", "PATCH", "DELETE"]),
         path: psaPath,
@@ -788,7 +895,7 @@ export function registerPsaTools(server: McpServer, client: PsaClient): void {
           .unknown()
           .optional()
           .describe("JSON body for POST/PUT; array of {op,path,value} ops for PATCH"),
-        confirm: z.boolean().optional().describe("Must be true for DELETE — deletions are permanent"),
+        confirm: z.boolean().optional().describe("Must be exactly true — every call changes live PSA data"),
       },
     },
     async ({ method, path, query, body, confirm }) => {

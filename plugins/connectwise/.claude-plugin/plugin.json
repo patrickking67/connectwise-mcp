@@ -1,7 +1,7 @@
 {
   "name": "connectwise",
   "version": "0.1.0",
-  "description": "ConnectWise for AI assistants \u2014 PSA (Manage), Automate (RMM) & Control (ScreenConnect): tickets, companies, assets, time, expenses, agreements, projects, procurement, sales, dispatch, and MSP workflow skills.",
+  "description": "ConnectWise for AI assistants — PSA (Manage) & Automate (RMM): tickets, companies, assets, time, expenses, agreements, projects, procurement, sales, dispatch, and MSP workflow skills.",
   "author": {
     "name": "Patrick King",
     "email": "patrickk@divergeit.com"

@@ -1,8 +1,14 @@
 #!/usr/bin/env node
 /**
  * The tool catalog is the source of truth for what this server exposes. This writes
- * the three places that repeat it — docs/TOOLS.md, the README table, and the MCPB
- * manifest's tool list — so they cannot drift from the code.
+ * the places that repeat it — docs/TOOLS.md, the README table, the MCPB manifest's
+ * tool list, and the three per-product manifests under manifests/ — so they cannot
+ * drift from the code.
+ *
+ * The per-product manifests are derived from the root manifest.json: same author,
+ * repository, version and compatibility, but one product's name, icon, config and
+ * tools. Each installs as its own bundle in Claude Desktop, running the same
+ * server with only that product configured.
  *
  *   npm run tools:sync    rewrite them
  *   npm run tools:check   fail if they are stale (CI)
@@ -18,6 +24,12 @@ const check = process.argv.includes("--check");
 
 const SURFACES: Array<{ key: ToolSurface; heading: string; blurb: string }> = [
   {
+    key: "server",
+    heading: "Server",
+    blurb:
+      "Always registered, whatever is configured \u2014 including nothing. The first thing to call when a product's tools are missing.",
+  },
+  {
     key: "psa",
     heading: "ConnectWise PSA (Manage)",
     blurb: "Always registered. Tickets, companies, contacts, assets, time, expenses, projects, finance, sales.",
@@ -26,11 +38,6 @@ const SURFACES: Array<{ key: ToolSurface; heading: string; blurb: string }> = [
     key: "automate",
     heading: "ConnectWise Automate (RMM)",
     blurb: "Registered only when `CW_AUTOMATE_*` is configured.",
-  },
-  {
-    key: "control",
-    heading: "ConnectWise Control (ScreenConnect) — beta",
-    blurb: "Registered only when `CW_SCREENCONNECT_*` is configured.",
   },
 ];
 
@@ -100,22 +107,122 @@ ${GENERATED_BLOCK}
 
 ## Interactive surface
 
-\`cw_get_ticket\` declares \`ui://connectwise-manage/ticket-card\` under both the MCP Apps key
-(\`_meta.ui.resourceUri\`) and the ChatGPT alias (\`_meta["openai/outputTemplate"]\`). The card is a
-single self-contained HTML document — no CDN, no network — that renders the ticket, its recent
-notes, and a box that posts an internal note back through \`cw_add_ticket_note\`. That note tool
-carries \`_meta.ui.visibility: ["model", "app"]\` (and the \`openai/widgetAccessible\` alias), which
-is what allows a card, rather than the model, to call it.
+Interactive tools are the \`cw_view_*\` views plus \`cw_get_ticket\`. Each declares a
+\`ui://connectwise/<view>.html\` resource under both the MCP Apps key (\`_meta.ui.resourceUri\`)
+and the ChatGPT alias (\`_meta["openai/outputTemplate"]\`). Every view is a single
+self-contained HTML document \u2014 no CDN, no network \u2014 built on one shell with theme-aware
+styling (light and dark), sortable and filterable tables, and counts in the header.
+
+The ticket card renders a ticket, its recent notes, and a box that posts an internal note back
+through \`cw_add_ticket_note\`. That note tool carries \`_meta.ui.visibility: ["model", "app"]\`
+(and the \`openai/widgetAccessible\` alias), which is what allows a view, rather than the model,
+to call it. \`cw_view_board\` opens the same card inline for a clicked row, through
+\`cw_get_ticket\`.
 
 MCP Apps is an optional, negotiated extension (\`io.modelcontextprotocol/ui\`), so host support
-varies. Nothing depends on it: the same tool result carries the full JSON in \`content\`.
+varies. Nothing depends on it: the same tool result carries the full JSON in \`content\` and in
+\`structuredContent\`.
 `;
 
-function manifestTools(): Array<{ name: string; description: string }> {
-  return TOOL_CATALOG.map((tool) => ({
-    name: tool.name,
+/** A bundle lists its product's tools plus the server tools every bundle registers. */
+function manifestTools(surface?: ToolSurface): Array<{ name: string; description: string }> {
+  return TOOL_CATALOG.filter(
+    (tool) => surface === undefined || tool.surface === surface || tool.surface === "server",
+  ).map((tool) => ({
+    name: tool.title,
     description: tool.category === "write" ? `${tool.summary} — writes to ConnectWise` : tool.summary,
   }));
+}
+
+/** What distinguishes each product bundle from the all-in-one root manifest. */
+const PRODUCT_BUNDLES: Array<{
+  surface: ToolSurface;
+  name: string;
+  display_name: string;
+  icon: string;
+  keywords: string[];
+  description: string;
+  long_description: string;
+  /** user_config keys this bundle keeps; every one becomes required. */
+  config: string[];
+  /** user_config keys this bundle keeps as optional — the two-factor seed and the write-gate switches. */
+  optionalConfig?: string[];
+}> = [
+  {
+    surface: "psa",
+    name: "connectwise-psa",
+    display_name: "ConnectWise PSA",
+    icon: "assets/connectwise-psa-512.png",
+    keywords: ["connectwise", "psa", "manage", "msp", "mcp"],
+    description: "ConnectWise PSA (Manage): tickets, companies, contacts, assets, time, projects, procurement, finance and sales. Read tools, gated write tools, and interactive ticket, board, company, time, project and schedule views.",
+    long_description:
+      "ConnectWise PSA (Manage) as a local MCP server. Tickets, companies, contacts, configurations, time and expense entries, projects with phases, the procurement catalog, products and purchase orders, agreements, invoices, opportunities, members, activities and the dispatch schedule, plus board metadata and read/write escape hatches (cw_api_get, cw_api_write) for the rest of the 1,800+ endpoint REST surface.\n\nEvery tool is named cw_* and shows a Title Case name in the client. Read tools carry readOnlyHint and can run without a prompt. The interactive views (cw_get_ticket, cw_view_board, cw_view_company, cw_view_time, cw_view_project, cw_view_schedule) render as MCP Apps cards on hosts that support it and as plain JSON everywhere else.\n\nWRITES ARE GATED. Write tools (create and update tickets, ticket notes, time and expense entries, cw_api_write) stay listed but refuse until you turn on PSA write mode; cw_api_write is the disruptive tier and also needs PSA allow destructive. Every write call also carries confirm: true. cw_status_gate explains a refusal, and cw_status_server reports exactly which fields are still empty.\n\nThis bundle runs on your own machine and holds the ConnectWise credentials there. Automate ships as a separate bundle from the same repository.",
+    config: ["psa_site", "psa_company_id", "psa_public_key", "psa_private_key", "psa_client_id"],
+    optionalConfig: ["psa_write_mode", "psa_allow_destructive"],
+  },
+  {
+    surface: "automate",
+    name: "connectwise-automate",
+    display_name: "ConnectWise Automate",
+    icon: "assets/connectwise-automate-512.png",
+    keywords: ["connectwise", "automate", "rmm", "msp", "mcp"],
+    description: "ConnectWise Automate (RMM): computers and their software, services, drives, patching, alerts and history; clients, scripts and commands; gated script runs, commands and reboots; interactive fleet, client and computer views.",
+    long_description:
+      "ConnectWise Automate (RMM) as a local MCP server. Search computers and read each one's software, services, drives, patch compliance, hardware, monitors, alerts, script history and command history; list clients, locations, contacts, groups, scripts, schedules, running scripts, alerts, monitors, commands, tickets, users, patch history and network devices; and reach anything else through cw_automate_api_get (GET only).\n\nEvery tool is named cw_automate_* and shows a Title Case name in the client. Read tools carry readOnlyHint. The interactive views (cw_automate_view_fleet, cw_automate_view_computers, cw_automate_view_computer, cw_automate_view_client) render as MCP Apps cards; the computer view has Run script and Reboot buttons that call the gated write tools.\n\nWRITES ARE GATED. Running a script, queuing a command or shell command, and updating a client or location stay listed but refuse until you turn on Automate write mode. Reboots, disruptive agent commands, script-schedule deletes, uninstalls and cw_automate_api_write are the disruptive tier and also need Automate allow destructive. Every write call carries confirm: true. cw_status_gate explains a refusal.\n\nThis bundle runs on your own machine and holds the Automate credentials there. PSA ships as a separate bundle from the same repository.",
+    config: ["automate_url", "automate_username", "automate_password", "automate_client_id"],
+    optionalConfig: ["automate_totp_secret", "automate_write_mode", "automate_allow_destructive"],
+  },
+];
+
+type Json = Record<string, unknown>;
+
+/** One product's manifest, derived from the root manifest plus its PRODUCT_BUNDLES entry. */
+function productManifest(root: Json, bundle: (typeof PRODUCT_BUNDLES)[number]): Json {
+  const rootConfig = root.user_config as Record<string, Json>;
+  const rootServer = root.server as Json;
+  const rootEnv = (rootServer.mcp_config as Json).env as Record<string, string>;
+  const optional = bundle.optionalConfig ?? [];
+  const userConfig: Record<string, Json> = {};
+  for (const key of [...bundle.config, ...optional]) {
+    // A product's credentials are all required in its own bundle; the two-factor
+    // seed and the write-gate switches genuinely are not (the gate defaults closed).
+    const field = { ...rootConfig[key], required: !optional.includes(key) };
+    // The root manifest's "(optional)" titles and its "leave blank" and "only
+    // used when" guidance are about the all-in-one bundle, not this one.
+    field.title = String(field.title).replace(/ \(optional\)$/, "");
+    field.description = String(field.description ?? "")
+      .replace(/\s*Leave blank to register no \w+ tools\./, "")
+      .replace(/\s*Only used when the \w+ URL is set\./, "")
+      .trim();
+    userConfig[key] = field;
+  }
+  const env: Record<string, string> = {};
+  for (const [name, value] of Object.entries(rootEnv)) {
+    const key = /\$\{user_config\.([^}]+)\}/.exec(value)?.[1];
+    if (key !== undefined && (bundle.config.includes(key) || optional.includes(key))) env[name] = value;
+  }
+  return {
+    $schema: root.$schema,
+    manifest_version: root.manifest_version,
+    name: bundle.name,
+    display_name: bundle.display_name,
+    version: root.version,
+    description: bundle.description,
+    long_description: bundle.long_description,
+    author: root.author,
+    repository: root.repository,
+    documentation: root.documentation,
+    support: root.support,
+    tools_generated: false,
+    keywords: bundle.keywords,
+    license: root.license,
+    compatibility: root.compatibility,
+    icon: bundle.icon,
+    icons: [{ src: bundle.icon, size: "512x512" }],
+    server: { ...rootServer, mcp_config: { ...(rootServer.mcp_config as Json), env } },
+    tools: manifestTools(bundle.surface),
+    user_config: userConfig,
+  };
 }
 
 interface Target {
@@ -137,6 +244,10 @@ function targets(): Target[] {
       next: replaceBlock(readFileSync(readmePath, "utf8"), "TOOLS", GENERATED_BLOCK),
     },
     { path: manifestPath, next: `${JSON.stringify(manifest, null, 2)}\n` },
+    ...PRODUCT_BUNDLES.map((bundle) => ({
+      path: join(ROOT, "manifests", `${bundle.name}.json`),
+      next: `${JSON.stringify(productManifest(manifest, bundle), null, 2)}\n`,
+    })),
   ];
 }
 

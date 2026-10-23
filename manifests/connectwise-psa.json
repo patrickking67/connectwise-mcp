@@ -1,0 +1,287 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/mcpb/main/schemas/mcpb-manifest-latest.schema.json",
+  "manifest_version": "0.4",
+  "name": "connectwise-psa",
+  "display_name": "ConnectWise PSA",
+  "version": "0.5.0",
+  "description": "ConnectWise PSA (Manage): tickets, companies, contacts, assets, time, projects, procurement, finance and sales. Read tools, gated write tools, and interactive ticket, board, company, time, project and schedule views.",
+  "long_description": "ConnectWise PSA (Manage) as a local MCP server. Tickets, companies, contacts, configurations, time and expense entries, projects with phases, the procurement catalog, products and purchase orders, agreements, invoices, opportunities, members, activities and the dispatch schedule, plus board metadata and read/write escape hatches (cw_api_get, cw_api_write) for the rest of the 1,800+ endpoint REST surface.\n\nEvery tool is named cw_* and shows a Title Case name in the client. Read tools carry readOnlyHint and can run without a prompt. The interactive views (cw_get_ticket, cw_view_board, cw_view_company, cw_view_time, cw_view_project, cw_view_schedule) render as MCP Apps cards on hosts that support it and as plain JSON everywhere else.\n\nWRITES ARE GATED. Write tools (create and update tickets, ticket notes, time and expense entries, cw_api_write) stay listed but refuse until you turn on PSA write mode; cw_api_write is the disruptive tier and also needs PSA allow destructive. Every write call also carries confirm: true. cw_status_gate explains a refusal, and cw_status_server reports exactly which fields are still empty.\n\nThis bundle runs on your own machine and holds the ConnectWise credentials there. Automate ships as a separate bundle from the same repository.",
+  "author": {
+    "name": "DivergeIT"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/patrickking67/connectwise-mcp.git"
+  },
+  "documentation": "https://github.com/patrickking67/connectwise-mcp/blob/main/README.md",
+  "support": "https://github.com/patrickking67/connectwise-mcp/issues",
+  "tools_generated": false,
+  "keywords": [
+    "connectwise",
+    "psa",
+    "manage",
+    "msp",
+    "mcp"
+  ],
+  "license": "MIT",
+  "compatibility": {
+    "claude_desktop": ">=1.0.0",
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "node": ">=20"
+    }
+  },
+  "icon": "assets/connectwise-psa-512.png",
+  "icons": [
+    {
+      "src": "assets/connectwise-psa-512.png",
+      "size": "512x512"
+    }
+  ],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/stdio.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/dist/stdio.js"
+      ],
+      "env": {
+        "CW_PSA_SITE": "${user_config.psa_site}",
+        "CW_PSA_COMPANY_ID": "${user_config.psa_company_id}",
+        "CW_PSA_PUBLIC_KEY": "${user_config.psa_public_key}",
+        "CW_PSA_PRIVATE_KEY": "${user_config.psa_private_key}",
+        "CW_PSA_CLIENT_ID": "${user_config.psa_client_id}",
+        "CW_PSA_MODE": "${user_config.psa_write_mode}",
+        "CW_PSA_ALLOW_DESTRUCTIVE": "${user_config.psa_allow_destructive}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "Server Status",
+      "description": "Report which ConnectWise products are configured and what an unconfigured one still needs"
+    },
+    {
+      "name": "Write Gate Status",
+      "description": "Report whether writes and the disruptive tier are enabled per product, and which setting opens each"
+    },
+    {
+      "name": "Search Tickets",
+      "description": "Search service tickets"
+    },
+    {
+      "name": "Search Companies",
+      "description": "Search companies (clients and vendors)"
+    },
+    {
+      "name": "Search Contacts",
+      "description": "Search contacts"
+    },
+    {
+      "name": "Search Configurations",
+      "description": "Search configurations — the managed assets tracked per company"
+    },
+    {
+      "name": "Search Time Entries",
+      "description": "Search time entries"
+    },
+    {
+      "name": "Search Projects",
+      "description": "Search projects"
+    },
+    {
+      "name": "Search Project Tickets",
+      "description": "Search project tickets — work items inside projects"
+    },
+    {
+      "name": "Search Purchase Orders",
+      "description": "Search procurement purchase orders"
+    },
+    {
+      "name": "Search Catalog Items",
+      "description": "Search the procurement product catalog"
+    },
+    {
+      "name": "Search Products",
+      "description": "Search products sold on tickets, projects, opportunities and agreements"
+    },
+    {
+      "name": "Search Expenses",
+      "description": "Search expense entries"
+    },
+    {
+      "name": "Search Opportunities",
+      "description": "Search sales opportunities"
+    },
+    {
+      "name": "Search Agreements",
+      "description": "Search agreements — the managed service contracts"
+    },
+    {
+      "name": "Search Invoices",
+      "description": "Search invoices"
+    },
+    {
+      "name": "Search Members",
+      "description": "Search members — the internal users and technicians"
+    },
+    {
+      "name": "Search Activities",
+      "description": "Search sales activities — calls, meetings and tasks"
+    },
+    {
+      "name": "Search Schedule Entries",
+      "description": "Search schedule entries — the dispatch calendar"
+    },
+    {
+      "name": "PSA System Status",
+      "description": "Read instance version and cloud/on-prem status — the cheap credentials check"
+    },
+    {
+      "name": "Get Ticket",
+      "description": "Open one ticket as an interactive card, with its notes"
+    },
+    {
+      "name": "Get Ticket Notes",
+      "description": "Page through every note on a ticket"
+    },
+    {
+      "name": "Create Ticket",
+      "description": "Create a service ticket — writes to ConnectWise"
+    },
+    {
+      "name": "Update Ticket",
+      "description": "Update fields on a service ticket — writes to ConnectWise"
+    },
+    {
+      "name": "Add Ticket Note",
+      "description": "Add a discussion, internal or resolution note to a ticket — writes to ConnectWise"
+    },
+    {
+      "name": "Get Company",
+      "description": "Get one company by id or identifier"
+    },
+    {
+      "name": "Create Time Entry",
+      "description": "Log time against a ticket, project ticket, activity or charge code — writes to ConnectWise"
+    },
+    {
+      "name": "Create Expense",
+      "description": "Log an expense against a ticket, project ticket, activity or charge code — writes to ConnectWise"
+    },
+    {
+      "name": "List Boards",
+      "description": "List service boards"
+    },
+    {
+      "name": "Get Board Info",
+      "description": "List the statuses, types and subtypes valid on one board"
+    },
+    {
+      "name": "Get Agreement Additions",
+      "description": "List the billed line items on one agreement"
+    },
+    {
+      "name": "Get Ticket Tasks",
+      "description": "List the checklist tasks on a ticket"
+    },
+    {
+      "name": "Get Configuration",
+      "description": "Get one configuration (managed asset) with its questions and custom fields"
+    },
+    {
+      "name": "Get Contact",
+      "description": "Get one contact with every phone and email"
+    },
+    {
+      "name": "Get Project",
+      "description": "Get one project with its phases, team and ticket progress"
+    },
+    {
+      "name": "Get Purchase Order",
+      "description": "Get one purchase order with its line items and receiving status"
+    },
+    {
+      "name": "PSA API Get",
+      "description": "GET any PSA endpoint that has no dedicated tool"
+    },
+    {
+      "name": "PSA API Write",
+      "description": "POST, PUT, PATCH or DELETE any PSA endpoint, guarded and confirmed on every call — writes to ConnectWise"
+    },
+    {
+      "name": "View Board",
+      "description": "Interactive queue of one service board: tickets by status and priority, filterable, each opening as a card"
+    },
+    {
+      "name": "View Company",
+      "description": "Interactive overview of one company: contacts, configurations, open tickets and agreements"
+    },
+    {
+      "name": "View Time",
+      "description": "Interactive summary of time entries for a period (this week by default), rolled up per member"
+    },
+    {
+      "name": "View Project",
+      "description": "Interactive project overview: budget vs actual hours, phases, team and project tickets"
+    },
+    {
+      "name": "View Schedule",
+      "description": "Interactive dispatch calendar: schedule entries per day and per member (next 7 days by default)"
+    }
+  ],
+  "user_config": {
+    "psa_site": {
+      "type": "string",
+      "title": "PSA site",
+      "description": "Your ConnectWise Manage host, e.g. na.myconnectwise.net. The api- prefix is added automatically for cloud hosts.",
+      "required": true,
+      "default": "na.myconnectwise.net"
+    },
+    "psa_company_id": {
+      "type": "string",
+      "title": "PSA company id",
+      "description": "The company identifier you log in with.",
+      "required": true
+    },
+    "psa_public_key": {
+      "type": "string",
+      "title": "PSA public key",
+      "description": "Public key of an API member. Give that member only the permissions these tools need — the connector can create tickets and time entries.",
+      "required": true
+    },
+    "psa_private_key": {
+      "type": "string",
+      "title": "PSA private key",
+      "description": "The matching private key. Supply it from your secret manager.",
+      "required": true,
+      "sensitive": true
+    },
+    "psa_client_id": {
+      "type": "string",
+      "title": "ConnectWise clientId",
+      "description": "The developer clientId GUID sent with every request. Issued by ConnectWise; required by the API.",
+      "required": true,
+      "sensitive": true
+    },
+    "psa_write_mode": {
+      "type": "boolean",
+      "title": "PSA write mode",
+      "description": "Allow the PSA write tools (create and update tickets, ticket notes, time and expense entries) to change live data. Off by default: write tools stay listed and refuse with a message naming this switch. Every write call also needs confirm: true.",
+      "required": false,
+      "default": false
+    },
+    "psa_allow_destructive": {
+      "type": "boolean",
+      "title": "PSA allow destructive",
+      "description": "Also allow the disruptive PSA tier: the raw cw_api_write passthrough, which can delete records. Needs PSA write mode on as well.",
+      "required": false,
+      "default": false
+    }
+  }
+}

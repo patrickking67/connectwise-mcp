@@ -35,7 +35,7 @@ az containerapp update -n connectwise-mcp -g rg-connectwise-mcp --set-env-vars \
 
 ⚠️ Set **all five** `CW_PSA_*` vars together — partial config crash-loops the container by design.
 
-**Verify:** in Claude, run `cw_system_info` → returns your PSA version. Full details: [SETUP.md](./SETUP.md).
+**Verify:** in Claude, run `cw_status_system` → returns your PSA version. Full details: [SETUP.md](./SETUP.md).
 
 ---
 

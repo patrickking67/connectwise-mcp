@@ -75,8 +75,6 @@ jobs:
               CW_AUTOMATE_URL: 'https://example.invalid',
               CW_AUTOMATE_USERNAME: 'ci', CW_AUTOMATE_PASSWORD: 'ci',
               CW_AUTOMATE_CLIENT_ID: 'ci',
-              CW_SCREENCONNECT_URL: 'https://example.invalid',
-              CW_SCREENCONNECT_USERNAME: 'ci', CW_SCREENCONNECT_PASSWORD: 'ci',
             };
             for (const [k, v] of Object.entries(env)) process.env[k] = v;
 
@@ -84,7 +82,8 @@ jobs:
             const { loadConfig } = await import('./dist/config.js');
             const { createServer } = await import('./dist/server.js');
 
-            const registered = Object.keys(createServer(loadConfig())._registeredTools ?? {}).sort();
+            // manifest.json lists display titles (what Claude Desktop shows), so compare titles.
+            const registered = Object.entries(createServer(loadConfig())._registeredTools ?? {}).map(([n, t]) => t.title ?? n).sort();
             const declared = JSON.parse(readFileSync('manifest.json', 'utf8')).tools.map(t => t.name).sort();
 
             const missing = registered.filter(n => !declared.includes(n));

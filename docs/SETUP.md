@@ -86,7 +86,7 @@ For per-user Microsoft sign-in instead of the shared token, see [ENTRA_SETUP.md]
 ## 6. Verify
 
 1. `curl https://<fqdn>/healthz` → `{"ok":true,...}`
-2. In Claude: "run cw_system_info" → returns your PSA version → credentials work.
+2. In Claude: "run cw_status_system" → returns your PSA version → credentials work.
 3. "search tickets on the Help Desk board that aren't closed" → real data flows.
 
 ## Troubleshooting
@@ -101,6 +101,9 @@ For per-user Microsoft sign-in instead of the shared token, see [ENTRA_SETUP.md]
 | `Security / SSL is required` from PSA | Site host missing the `api-` prefix (cloud) |
 | 429s under load | ConnectWise rate limiting; the client already honors Retry-After with capped backoff |
 | Tool errors mention security roles | The API member's PSA security role doesn't allow that module — adjust in PSA |
+| **Automate not starting** in Claude Desktop | Two causes, and usually both. **(a)** The extension is *disabled* — Settings → Extensions, turn it on; a disabled extension contributes no tools and reports no error. **(b)** Its form is only partly filled. Automate needs **all four** fields — Automate URL, **Automate username**, Automate password, Automate clientId — and a missing username is the common one, because the server ignores a half-filled product rather than guessing. Fill every field, restart Claude Desktop, then run `cw_status_server`: it names the exact variables and Settings → Extensions fields that are still empty. **(c)** If the login account has two-factor authentication enabled, username and password alone cannot succeed headlessly — see the next row. |
+| `two-factor authentication enabled` from Automate | The account the connector logs in as has 2FA. **The clean fix is a dedicated API service account (an Automate **Integrator** user), exempt from two-factor** — it is the account an integration should be using anyway, and it needs no seed here. Where the account must keep 2FA, set the optional **Automate TOTP secret** field (`CW_AUTOMATE_TOTP_SECRET`) to the base32 seed that account's authenticator was enrolled with, and the connector generates each passcode itself (RFC 6238, 30-second step, 6 digits). The seed is whatever the operator enrolled — it cannot be derived or reset from here; in this estate it is stored alongside the credential in IT Glue. Treat it as a credential: it is marked sensitive in the manifest and never appears in tool output. |
+| Any product's tools missing anywhere | Run `cw_status_server`. It is registered whatever is configured — including nothing at all — and reports which products are on, which are incomplete, and the missing variable for each |
 
 ## Costs
 

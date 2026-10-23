@@ -13,7 +13,7 @@ Give a project manager a clear read on where projects stand: status, work remain
 - `cw_search_projects` — projects by status, manager, company, dates
 - `cw_search_project_tickets` — work items within projects (phases, owners, status)
 - `cw_search_time_entries` — actuals logged against project work
-- `cw_api_request` — phases (`/project/projects/{id}/phases`), team members, and anything else under `/project/*`
+- `cw_api_get` — phases (`/project/projects/{id}/phases`), team members, and anything else under `/project/*`
 
 ## Workflow
 
@@ -23,7 +23,7 @@ Give a project manager a clear read on where projects stand: status, work remain
    - A PM's book: `manager/identifier="pking" and closedFlag=false`
 2. **Status read.** For each project surface: status, % via budget vs. actual hours (`actualHours` vs `budgetHours`), estimated end, and open ticket count. Flag over-budget (`actualHours > budgetHours`) and past-due (`estimatedEnd < today`).
 3. **Drill into work.** `cw_search_project_tickets` with `project/id=<id> and closedFlag=false`, grouped by phase. Show owners and what's in flight vs. not started.
-4. **Phases / team** when asked: `cw_api_request` on `/project/projects/{id}/phases` and `/project/projects/{id}/teamMembers`.
+4. **Phases / team** when asked: `cw_api_get` on `/project/projects/{id}/phases` and `/project/projects/{id}/teamMembers`.
 
 ## Tips
 

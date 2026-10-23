@@ -1,7 +1,7 @@
 {
   "name": "connectwise-manage-mcp",
-  "version": "0.3.0",
-  "description": "ConnectWise Manage MCP server (PSA, plus optional Automate and Control) \u2014 local stdio, remote Streamable HTTP, and an MCPB bundle",
+  "version": "0.5.0",
+  "description": "ConnectWise MCP server (PSA, plus optional Automate) — local stdio, remote Streamable HTTP, and MCPB bundles",
   "type": "module",
   "main": "dist/index.js",
   "license": "MIT",
@@ -12,17 +12,25 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch src/index.ts",
     "docker:build": "docker build -t connectwise-manage-mcp .",
-    "mcpb:pack": "npm run build && mcpb pack . connectwise-manage-mcp.mcpb",
-    "mcpb:validate": "mcpb validate manifest.json",
+    "mcpb:pack": "npm run build && npm run tools:sync && node scripts/pack-mcpb.mjs --manifest manifests/connectwise-psa.json dist/connectwise-psa.mcpb && node scripts/pack-mcpb.mjs --manifest manifests/connectwise-automate.json dist/connectwise-automate.mcpb",
+    "mcpb:validate": "npx --yes @anthropic-ai/mcpb@^2 validate manifest.json",
     "start": "node dist/index.js",
     "start:remote": "node dist/index.js",
     "start:stdio": "node dist/stdio.js",
     "test": "vitest run",
     "tools:check": "tsx scripts/sync-tool-docs.ts --check",
     "tools:sync": "tsx scripts/sync-tool-docs.ts",
-    "typecheck": "tsc -p tsconfig.test.json --noEmit"
+    "apps:runtime": "node scripts/generate-app-runtime.mjs",
+    "apps:check": "node scripts/generate-app-runtime.mjs --check",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "mcpb:pack:suite": "npm run build && npm run tools:sync && node scripts/pack-mcpb.mjs dist/connectwise.mcpb",
+    "worker:dev": "npm run build && wrangler dev",
+    "worker:check": "npm run build && wrangler deploy --dry-run",
+    "worker:deploy": "npm run build && wrangler deploy",
+    "access:setup": "node scripts/access-app.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^1.7.5",
     "@modelcontextprotocol/sdk": "^1.17.0",
     "express": "^5.1.0",
     "jose": "^6.2.3",
@@ -34,7 +42,8 @@
     "@types/node": "^22.10.0",
     "tsx": "^4.19.0",
     "typescript": "^5.8.0",
-    "vitest": "^3.1.0"
+    "vitest": "^3.1.0",
+    "wrangler": "^4.152.0"
   },
   "bin": {
     "connectwise-manage-mcp": "dist/stdio.js"
