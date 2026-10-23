@@ -28,7 +28,6 @@ npm ci
 npm run mcpb:pack
 # dist/connectwise-psa.mcpb
 # dist/connectwise-automate.mcpb
-# dist/connectwise-control.mcpb
 ```
 
 Double-click the `.mcpb`, or **Settings → Extensions → Advanced settings → Install extension**.
@@ -39,10 +38,9 @@ Then, for each installed extension:
    shows nothing in the client — it does not report an error.
 2. **Fill every field.** A partly filled product is not a partly working product: the server
    refuses a half-configured product and says which field is empty. Automate needs the URL,
-   **username**, password and clientId — all four. Control needs URL, username and password —
-   all three.
+   **username**, password and clientId — all four.
 3. **If the login account has two-factor authentication enabled**, fill the optional **Automate TOTP
-   secret** / **Control TOTP secret** field with the base32 seed that account's authenticator was
+   secret** field with the base32 seed that account's authenticator was
    enrolled with; the connector then generates each passcode itself. Better still, use a dedicated
    API service account exempt from two-factor and leave the field blank. See
    [SETUP.md](./SETUP.md#troubleshooting).
@@ -58,10 +56,13 @@ Where things live on macOS:
 
 On Windows, replace `~/Library/Application Support/Claude` with `%APPDATA%\Claude`.
 
-Writes are always available in the bundle — this connector's guard is per call, not per install:
-`cw_api_write` refuses `DELETE` without `confirm: true`, `cw_automate_api_write` refuses every
-call without it, `cw_control_api_write` refuses `POST` without it, and Claude Code prompts a
-person on every raw-write call.
+Writes are gated per product. Each bundle has a **write mode** switch and an **allow destructive**
+switch, both off by default: write tools stay listed but refuse until write mode is on, the
+disruptive tier (reboots, disruptive agent commands, deletes, uninstalls, raw `*_api_write`) also
+needs allow destructive, every write call needs `confirm: true`, and Claude Code prompts a person on
+every raw-write call. `cw_status_gate` reports what is on. Outside Claude Desktop the switches are
+`CW_PSA_MODE=write` / `CW_PSA_ALLOW_DESTRUCTIVE=true` and `CW_AUTOMATE_MODE=write` /
+`CW_AUTOMATE_ALLOW_DESTRUCTIVE=true`.
 
 ## 2. Claude Code (CLI, VS Code, JetBrains, and the desktop Code tab)
 
@@ -77,7 +78,7 @@ claude mcp add --scope user connectwise-psa \
   -- node /absolute/path/to/connectwise-mcp/dist/stdio.js
 ```
 
-Automate and Control are the same command with their own variables:
+Automate is the same command with its own variables:
 
 ```bash
 claude mcp add --scope user connectwise-automate \
@@ -87,11 +88,6 @@ claude mcp add --scope user connectwise-automate \
   --env CW_AUTOMATE_CLIENT_ID=... \
   -- node /absolute/path/to/connectwise-mcp/dist/stdio.js
 
-claude mcp add --scope user connectwise-control \
-  --env CW_SCREENCONNECT_URL=https://x.screenconnect.com \
-  --env CW_SCREENCONNECT_USERNAME=... \
-  --env CW_SCREENCONNECT_PASSWORD=... \
-  -- node /absolute/path/to/connectwise-mcp/dist/stdio.js
 ```
 
 Project scope instead — commit `.mcp.json` at the repo root (without secrets; `${VAR}` is
@@ -178,8 +174,8 @@ argument the absolute `dist/stdio.js` path, plus the same environment variables.
 added as a connector in developer mode.
 
 Every interactive tool carries `_meta["openai/outputTemplate"]` alongside the MCP Apps key, so
-`cw_get_ticket`, `cw_view_board`, `cw_view_company`, `cw_view_time`,
-`cw_automate_view_computers` and `cw_control_view_sessions` render as widgets where the Apps SDK
+`cw_get_ticket`, `cw_view_board`, `cw_view_company`, `cw_view_time`, `cw_view_project`,
+`cw_view_schedule` and the `cw_automate_view_*` views render as widgets where the Apps SDK
 is enabled, and return the same JSON where it is not.
 
 ## 5. Cursor, Windsurf, VS Code Copilot
@@ -232,7 +228,8 @@ In any client, in this order:
    exact variables and Settings fields any unconfigured product is still missing. This works even
    when nothing at all is configured.
 2. `cw_status_system` — reaches PSA and returns its version: the cheap credentials check.
-3. `cw_automate_list_clients` / `cw_control_list_sessions` — the same proof for the other two.
+3. `cw_automate_test_connection` — the same proof for Automate, plus whether the login is an
+   integrator account.
 4. `cw_view_board` with a board name — proves the interactive surface renders (and falls back to
    JSON on a host without MCP Apps).
 

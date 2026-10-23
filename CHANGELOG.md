@@ -5,6 +5,62 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.5.0] - 2026-10-22
+
+### Added
+- **A per-product write gate.** Every write tool stays listed but refuses until
+  the operator opens it: `CW_PSA_MODE=write` / `CW_AUTOMATE_MODE=write` (Settings
+  fields "PSA write mode" / "Automate write mode"), plus
+  `CW_PSA_ALLOW_DESTRUCTIVE=true` / `CW_AUTOMATE_ALLOW_DESTRUCTIVE=true` for the
+  disruptive tier (raw `*_api_write`, reboots, uninstalls, schedule deletes,
+  disruptive agent commands). Every write call also needs `confirm: true`. A
+  refusal names the env var and Settings field and says nothing was changed.
+  `cw_status_gate` reports the gate for each product.
+- **Automate, built out (7 to 45 tools in its bundle).** Reads across computers
+  (software, services, drives, alerts, monitors, patching, hardware, script and
+  command history), clients, locations, contacts, groups, scripts and schedules,
+  running scripts, alerts, monitors, agent commands, tickets, users, network
+  devices and patch history, plus `cw_automate_test_connection`. Gated writes:
+  `cw_automate_run_script`, `cw_automate_run_command`,
+  `cw_automate_run_shell_command`, `cw_automate_update_client`,
+  `cw_automate_update_location`; disruptive tier `cw_automate_reboot_computer`,
+  `cw_automate_delete_script_schedule`, `cw_automate_uninstall_software`. Every
+  endpoint is in the published Automate REST API and every read was confirmed
+  read-only against a live server. Automate exposes no endpoint to acknowledge
+  or clear an alert or edit a computer, so there is no tool for either.
+- **Three Automate views:** `cw_automate_view_fleet` (offline servers, pending
+  reboots, quiet agents, stale AV, per client), `cw_automate_view_client` and
+  `cw_automate_view_computer` (drives, patching, alerts, history, with Run
+  script and Reboot buttons that call the gated tools after a second click).
+- **PSA gaps:** `cw_get_configuration`, `cw_get_contact`, `cw_get_project`
+  (phases, team, ticket progress), `cw_get_purchase_order` (with line items),
+  `cw_search_catalog_items`, `cw_search_products`, and the `cw_view_project`
+  and `cw_view_schedule` views.
+
+### Changed
+- **PSA writes now need write mode.** Existing installs that create tickets,
+  notes, time or expenses must set "PSA write mode" (`CW_PSA_MODE=write`);
+  until then those tools refuse with that instruction. `cw_api_write` also
+  needs "PSA allow destructive".
+- `cw_update_ticket` is a non-destructive write (it was annotated destructive).
+
+### Removed
+- **ConnectWise Control (ScreenConnect).** `cw_control_list_sessions`,
+  `cw_control_api_write`, `cw_control_view_sessions`, the `CW_SCREENCONNECT_*`
+  settings and the `connectwise-control` bundle are gone, along with the
+  remote-support skill.
+
+### Fixed
+- **Automate login that returned 200 with no token.** The client reported only
+  "returned no AccessToken". It now reads the token case-insensitively, names a
+  two-factor demand (`IsTwoFactorRequired`) and the fix (tick Integrator on the
+  Automate user, or set the TOTP seed), calls out an HTML reply as a wrong URL,
+  and otherwise includes the server message and the reply's field names.
+- The CI manifest check compared tool names against titles; it now compares
+  titles to titles.
+
 ## [0.4.0] - 2026-09-22
 
 ### Added

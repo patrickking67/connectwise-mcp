@@ -45,7 +45,7 @@ function ticketPanel(root, view, data, opts = {}) {
       if (!value) { status.className = 'status err'; status.textContent = 'Write the note first.'; return; }
       button.disabled = true; status.className = 'status'; status.textContent = 'Adding…';
       try {
-        await view.call('cw_add_ticket_note', { ticketId: t.id, text: value, noteType: 'internal' });
+        await view.call('cw_add_ticket_note', { ticketId: t.id, text: value, noteType: 'internal', confirm: true });
         notes.unshift({ text: value, internalAnalysisFlag: true, dateCreated: new Date().toISOString(), createdBy: 'you' });
         draw('Note added.', 'ok');
       } catch (err) {

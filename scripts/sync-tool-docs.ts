@@ -39,11 +39,6 @@ const SURFACES: Array<{ key: ToolSurface; heading: string; blurb: string }> = [
     heading: "ConnectWise Automate (RMM)",
     blurb: "Registered only when `CW_AUTOMATE_*` is configured.",
   },
-  {
-    key: "control",
-    heading: "ConnectWise Control (ScreenConnect) — beta",
-    blurb: "Registered only when `CW_SCREENCONNECT_*` is configured.",
-  },
 ];
 
 const CATEGORY_LABEL: Record<ToolCategory, string> = {
@@ -150,7 +145,7 @@ const PRODUCT_BUNDLES: Array<{
   long_description: string;
   /** user_config keys this bundle keeps; every one becomes required. */
   config: string[];
-  /** user_config keys this bundle keeps as optional — the two-factor seeds. */
+  /** user_config keys this bundle keeps as optional — the two-factor seed and the write-gate switches. */
   optionalConfig?: string[];
 }> = [
   {
@@ -159,10 +154,11 @@ const PRODUCT_BUNDLES: Array<{
     display_name: "ConnectWise PSA",
     icon: "assets/connectwise-psa-512.png",
     keywords: ["connectwise", "psa", "manage", "msp", "mcp"],
-    description: "ConnectWise PSA (Manage): tickets, companies, contacts, time, expenses, projects, finance and sales. Read, write, and interactive board, company, time and ticket views.",
+    description: "ConnectWise PSA (Manage): tickets, companies, contacts, assets, time, projects, procurement, finance and sales. Read tools, gated write tools, and interactive ticket, board, company, time, project and schedule views.",
     long_description:
-      "ConnectWise PSA (Manage) as a local MCP server. Tickets, companies, contacts, configurations, time and expense entries, projects, agreements, invoices, opportunities, members, activities and schedule entries, plus board metadata and read/write escape hatches (cw_api_get, cw_api_write) for the rest of the 1,800+ endpoint REST surface.\n\nEvery tool is named cw_* and shows a Title Case name in the client. Read-only tools carry readOnlyHint and can run without a prompt; write tools declare themselves as writes; the interactive views (cw_get_ticket, cw_view_board, cw_view_company, cw_view_time) render as MCP Apps cards on hosts that support it and as plain JSON everywhere else.\n\ncw_status_server is always registered and reports which products are configured and exactly which fields are still empty.\n\nTHIS CONNECTOR WRITES. It can create and update tickets, add ticket notes, and create time and expense entries. The raw read tool cannot issue anything but GET, and cw_api_write refuses DELETE without confirm: true.\n\nThis bundle runs on your own machine and holds the ConnectWise credentials there. Automate and Control ship as separate bundles from the same repository.",
+      "ConnectWise PSA (Manage) as a local MCP server. Tickets, companies, contacts, configurations, time and expense entries, projects with phases, the procurement catalog, products and purchase orders, agreements, invoices, opportunities, members, activities and the dispatch schedule, plus board metadata and read/write escape hatches (cw_api_get, cw_api_write) for the rest of the 1,800+ endpoint REST surface.\n\nEvery tool is named cw_* and shows a Title Case name in the client. Read tools carry readOnlyHint and can run without a prompt. The interactive views (cw_get_ticket, cw_view_board, cw_view_company, cw_view_time, cw_view_project, cw_view_schedule) render as MCP Apps cards on hosts that support it and as plain JSON everywhere else.\n\nWRITES ARE GATED. Write tools (create and update tickets, ticket notes, time and expense entries, cw_api_write) stay listed but refuse until you turn on PSA write mode; cw_api_write is the disruptive tier and also needs PSA allow destructive. Every write call also carries confirm: true. cw_status_gate explains a refusal, and cw_status_server reports exactly which fields are still empty.\n\nThis bundle runs on your own machine and holds the ConnectWise credentials there. Automate ships as a separate bundle from the same repository.",
     config: ["psa_site", "psa_company_id", "psa_public_key", "psa_private_key", "psa_client_id"],
+    optionalConfig: ["psa_write_mode", "psa_allow_destructive"],
   },
   {
     surface: "automate",
@@ -170,23 +166,11 @@ const PRODUCT_BUNDLES: Array<{
     display_name: "ConnectWise Automate",
     icon: "assets/connectwise-automate-512.png",
     keywords: ["connectwise", "automate", "rmm", "msp", "mcp"],
-    description: "ConnectWise Automate (RMM): computers, clients, an interactive computers table, and read/write escape hatches to the Automate REST API.",
+    description: "ConnectWise Automate (RMM): computers and their software, services, drives, patching, alerts and history; clients, scripts and commands; gated script runs, commands and reboots; interactive fleet, client and computer views.",
     long_description:
-      "ConnectWise Automate (RMM) as a local MCP server. Search and read computers, list clients, and reach any other Automate endpoint through cw_automate_api_get (GET only) and cw_automate_api_write.\n\nEvery tool is named cw_automate_* and shows a Title Case name in the client. Read-only tools carry readOnlyHint; the write escape hatch refuses every call without confirm: true. cw_automate_view_computers renders an interactive agent table on hosts that support MCP Apps. cw_status_server is always registered and reports exactly which fields are still empty.\n\nThis bundle runs on your own machine and holds the Automate credentials there. PSA and Control ship as separate bundles from the same repository.",
+      "ConnectWise Automate (RMM) as a local MCP server. Search computers and read each one's software, services, drives, patch compliance, hardware, monitors, alerts, script history and command history; list clients, locations, contacts, groups, scripts, schedules, running scripts, alerts, monitors, commands, tickets, users, patch history and network devices; and reach anything else through cw_automate_api_get (GET only).\n\nEvery tool is named cw_automate_* and shows a Title Case name in the client. Read tools carry readOnlyHint. The interactive views (cw_automate_view_fleet, cw_automate_view_computers, cw_automate_view_computer, cw_automate_view_client) render as MCP Apps cards; the computer view has Run script and Reboot buttons that call the gated write tools.\n\nWRITES ARE GATED. Running a script, queuing a command or shell command, and updating a client or location stay listed but refuse until you turn on Automate write mode. Reboots, disruptive agent commands, script-schedule deletes, uninstalls and cw_automate_api_write are the disruptive tier and also need Automate allow destructive. Every write call carries confirm: true. cw_status_gate explains a refusal.\n\nThis bundle runs on your own machine and holds the Automate credentials there. PSA ships as a separate bundle from the same repository.",
     config: ["automate_url", "automate_username", "automate_password", "automate_client_id"],
-    optionalConfig: ["automate_totp_secret"],
-  },
-  {
-    surface: "control",
-    name: "connectwise-control",
-    display_name: "ConnectWise Control",
-    icon: "assets/connectwise-control-512.png",
-    keywords: ["connectwise", "control", "screenconnect", "msp", "mcp"],
-    description: "ConnectWise Control (ScreenConnect): sessions, an interactive session table, and a confirmed passthrough to the Control API. Beta.",
-    long_description:
-      "ConnectWise Control (ScreenConnect) as a local MCP server, in beta. List sessions and reach other Control endpoints through cw_control_api_write (GET, and POST with confirm: true).\n\nEvery tool is named cw_control_* and shows a Title Case name in the client. cw_control_list_sessions and cw_control_view_sessions are read-only and carry readOnlyHint; cw_control_api_write requires confirm: true for POST. cw_status_server is always registered and reports exactly which fields are still empty.\n\nThis bundle runs on your own machine and holds the Control credentials there. PSA and Automate ship as separate bundles from the same repository.",
-    config: ["screenconnect_url", "screenconnect_username", "screenconnect_password"],
-    optionalConfig: ["screenconnect_totp_secret"],
+    optionalConfig: ["automate_totp_secret", "automate_write_mode", "automate_allow_destructive"],
   },
 ];
 
@@ -201,7 +185,7 @@ function productManifest(root: Json, bundle: (typeof PRODUCT_BUNDLES)[number]): 
   const userConfig: Record<string, Json> = {};
   for (const key of [...bundle.config, ...optional]) {
     // A product's credentials are all required in its own bundle; the two-factor
-    // seed genuinely is not, because most accounts should not need one.
+    // seed and the write-gate switches genuinely are not (the gate defaults closed).
     const field = { ...rootConfig[key], required: !optional.includes(key) };
     // The root manifest's "(optional)" titles and its "leave blank" and "only
     // used when" guidance are about the all-in-one bundle, not this one.

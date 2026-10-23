@@ -35,7 +35,7 @@ export const AUTOMATE_COMPUTERS_VIEW: ViewDefinition<
     invoked: "Computers loaded.",
   }),
   description:
-    "Interactive table of ConnectWise Automate agents (computers): online/offline with counts, operating system, client, location, IP and last contact, sortable and filterable. Read-only. Condition examples: ComputerName contains 'SRV', Client.Id = 5. Hosts without MCP Apps get the same data as JSON.",
+    "Interactive table of ConnectWise Automate agents (computers): online/offline with counts, operating system, client, location, IP and last contact, sortable and filterable; clicking a row asks for that computer's detail view. Read-only. Condition examples: ComputerName contains 'SRV', Client.Id = 5. Hosts without MCP Apps get the same data as JSON.",
   inputSchema: {
     condition: z.string().optional().describe("Automate condition expression (single quotes for strings)"),
     clientId: z.number().int().optional().describe("Only this Automate client's computers"),
@@ -56,18 +56,17 @@ boot((root, view) => {
     { key: 'os', label: 'OS', wrap: true },
     { key: 'ip', label: 'IP', render: (v) => '<span class="mono">' + esc(v ?? '—') + '</span>' },
     { key: 'lastContact', label: 'Last contact', render: (v) => esc(fmtAgo(v)), sort: (r) => new Date(r.lastContact ?? 0).getTime() },
-  ], { sortKey: 'name', filters: [{ key: 'client', label: 'clients' }, { key: 'os', label: 'operating systems' }], empty: 'No computers match.' });
+  ], { sortKey: 'name', filters: [{ key: 'client', label: 'clients' }, { key: 'os', label: 'operating systems' }], empty: 'No computers match.', onRow: (r) => view.app?.sendMessage?.({ role: 'user', content: [{ type: 'text', text: 'Open Automate computer ' + r.name + ' (id ' + r.id + ') with cw_automate_view_computer.' }] }) });
 });`,
   },
   load: async ({ condition, clientId, pageSize }, client) => {
     const parts = [condition, clientId !== undefined ? `Client.Id = ${clientId}` : undefined].filter(Boolean);
-    const items = await client.get<unknown[]>("/Computers", {
+    const { items } = await client.list("/Computers", {
       condition: parts.length ? parts.map((p) => `(${p})`).join(" and ") : undefined,
-      includefields:
-        "Id,ComputerName,Client,Location,OperatingSystemName,OperatingSystemVersion,LastContactDate,RemoteAgentLastContact,LocalIPAddress,Status,Type,LastUserName",
-      pagesize: pageSize ?? 250,
-      page: 1,
-      orderby: "ComputerName asc",
+      includeFields:
+        "Id,ComputerName,Client,Location,OperatingSystemName,OperatingSystemVersion,RemoteAgentLastContact,LocalIPAddress,Status,Type,LastUserName",
+      pageSize: pageSize ?? 250,
+      orderBy: "ComputerName asc",
     });
     const now = Date.now();
     const computers = (Array.isArray(items) ? items : []).map((c) => {

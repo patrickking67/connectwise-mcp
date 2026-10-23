@@ -20,9 +20,9 @@ stdio. Two things move, and both are decisions rather than configuration:
    establish one itself.
 
 That second point is sharper here than anywhere else in the fleet, because **this
-connector writes**. It can create and update tickets, add notes, and create time
-and expense entries, and it carries raw request escape hatches for PSA, Automate
-and Control. An endpoint serving that to whoever finds the URL is not a degraded
+connector writes**. It can create and update tickets, add notes, create time
+and expense entries and run Automate scripts once its write gate is opened, and it
+carries raw request escape hatches for PSA and Automate. An endpoint serving that to whoever finds the URL is not a degraded
 deployment of it — so the remote entry **refuses to start with no authentication
 configured**.
 
@@ -209,10 +209,10 @@ Setting it to `0` costs nothing while idle and adds a few seconds to that first
 call. For an internal connector used in bursts, that trade is often right — it is
 a parameter for exactly that reason.
 
-## Deploying without Automate or Control
+## Deploying without Automate
 
-Leave `automateUrl` empty. Automate and Control register their tools only when
-their credentials are configured, so an unconfigured integration contributes no
+Leave `automateUrl` empty. Automate registers its tools only when its
+credentials are configured, so an unconfigured integration contributes no
 tools rather than tools that fail — that is the supported way to run PSA-only, not
 something to work around.
 
@@ -222,10 +222,6 @@ resolves **every** declared secret when a revision starts, so a reference to a
 vault entry that does not exist fails the whole revision. Creating them unused is
 cheaper than making the template branch, and populating them later is a vault
 write plus a restart.
-
-Control (ScreenConnect) is **beta** and is not wired into this template at all.
-Its endpoint shapes are version-dependent, so it is configured by hand on a
-deployment that wants it.
 
 ## Related
 

@@ -1,7 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult, ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import type { z } from "zod";
-import { safeHandler } from "../lib/format.js";
+import { errorResult, safeHandler } from "../lib/format.js";
+import { confirmParam, gateFor, gateRefusal } from "./gate.js";
 
 /**
  * One place that decides what a tool is called, what a person sees it called, and
@@ -15,7 +16,7 @@ import { safeHandler } from "../lib/format.js";
  */
 
 /** Which ConnectWise product a tool talks to; `server` tools need no product at all. */
-export type ToolSurface = "server" | "psa" | "automate" | "control";
+export type ToolSurface = "server" | "psa" | "automate";
 
 /** The verbs a tool name may carry, by kind — the DivergeIT house convention. */
 export const READ_VERBS = ["list", "get", "search", "find", "test", "status", "report", "plan"] as const;
@@ -23,7 +24,7 @@ export const WRITE_VERBS = [
   "create", "update", "set", "run", "send", "assign", "sync", "restart", "reboot", "start", "stop",
   "invite", "rotate", "apply", "install", "uninstall", "lock", "wake", "blink", "cycle", "claim",
   "remove", "delete", "wipe", "retire", "clear", "execute", "add",
-  // The raw passthrough: cw_api_write / cw_control_api_write, where the kind is
+  // The raw passthrough: cw_api_write / cw_automate_api_write, where the kind is
   // the word itself.
   "write",
 ] as const;
@@ -31,12 +32,11 @@ export const WRITE_VERBS = [
 export const VIEW_VERB = "view";
 
 /**
- * The verb of a tool name: the first word after the prefix (`cw_`, `cw_automate_`,
- * `cw_control_`). The raw passthroughs are `api_get` / `api_write`, where the
+ * The verb of a tool name: the first word after the prefix (`cw_` or `cw_automate_`). The raw passthroughs are `api_get` / `api_write`, where the
  * kind sits after `api`.
  */
 export function toolVerb(name: string): string {
-  const words = name.replace(/^cw_(?:automate_|control_)?/, "").split("_");
+  const words = name.replace(/^cw_(?:automate_)?/, "").split("_");
   return words[0] === "api" ? (words[1] ?? "") : words[0];
 }
 
@@ -187,6 +187,11 @@ export interface ToolShape {
 /**
  * Register a tool from its spec: one call site so no tool can be added without a
  * title, a category, and annotations, and so handlers are always wrapped.
+ *
+ * Write tools are also gated here, so no write can be registered without the
+ * gate: every write tool gets a `confirm` parameter, and its handler only runs
+ * when the product is in write mode, the disruptive tier is allowed for a
+ * `destructive` tool, and the call carries confirm: true (see gate.ts).
  */
 export function registerSpecTool<A>(
   server: McpServer,
@@ -197,16 +202,35 @@ export function registerSpecTool<A>(
   if (!TOOL_NAME_PATTERN.test(spec.name)) {
     throw new Error(`Tool name "${spec.name}" is not cw_ + snake_case`);
   }
+  let inputSchema = shape.inputSchema ?? {};
+  let run = handler;
+  if (spec.kind === "write") {
+    if (spec.surface !== "psa" && spec.surface !== "automate") {
+      throw new Error(`Write tool "${spec.name}" has no gated product surface`);
+    }
+    const product = spec.surface;
+    inputSchema = { ...inputSchema, confirm: inputSchema.confirm ?? confirmParam };
+    run = async (args: A) => {
+      const refusal = gateRefusal(gateFor(server, product), {
+        tool: spec.name,
+        product,
+        destructive: spec.destructive === true,
+        confirm: (args as { confirm?: unknown } | undefined)?.confirm,
+      });
+      if (refusal) return errorResult(new Error(refusal));
+      return handler(args);
+    };
+  }
   server.registerTool(
     spec.name,
     {
       title: toolTitle(spec),
       description: shape.description,
-      inputSchema: shape.inputSchema ?? {},
+      inputSchema,
       annotations: annotationsFor(spec),
       _meta: metaFor(spec),
     },
-    safeHandler(handler) as never,
+    safeHandler(run) as never,
   );
 }
 

@@ -3,9 +3,9 @@
   "manifest_version": "0.4",
   "name": "connectwise-psa",
   "display_name": "ConnectWise PSA",
-  "version": "0.4.0",
-  "description": "ConnectWise PSA (Manage): tickets, companies, contacts, time, expenses, projects, finance and sales. Read, write, and interactive board, company, time and ticket views.",
-  "long_description": "ConnectWise PSA (Manage) as a local MCP server. Tickets, companies, contacts, configurations, time and expense entries, projects, agreements, invoices, opportunities, members, activities and schedule entries, plus board metadata and read/write escape hatches (cw_api_get, cw_api_write) for the rest of the 1,800+ endpoint REST surface.\n\nEvery tool is named cw_* and shows a Title Case name in the client. Read-only tools carry readOnlyHint and can run without a prompt; write tools declare themselves as writes; the interactive views (cw_get_ticket, cw_view_board, cw_view_company, cw_view_time) render as MCP Apps cards on hosts that support it and as plain JSON everywhere else.\n\ncw_status_server is always registered and reports which products are configured and exactly which fields are still empty.\n\nTHIS CONNECTOR WRITES. It can create and update tickets, add ticket notes, and create time and expense entries. The raw read tool cannot issue anything but GET, and cw_api_write refuses DELETE without confirm: true.\n\nThis bundle runs on your own machine and holds the ConnectWise credentials there. Automate and Control ship as separate bundles from the same repository.",
+  "version": "0.5.0",
+  "description": "ConnectWise PSA (Manage): tickets, companies, contacts, assets, time, projects, procurement, finance and sales. Read tools, gated write tools, and interactive ticket, board, company, time, project and schedule views.",
+  "long_description": "ConnectWise PSA (Manage) as a local MCP server. Tickets, companies, contacts, configurations, time and expense entries, projects with phases, the procurement catalog, products and purchase orders, agreements, invoices, opportunities, members, activities and the dispatch schedule, plus board metadata and read/write escape hatches (cw_api_get, cw_api_write) for the rest of the 1,800+ endpoint REST surface.\n\nEvery tool is named cw_* and shows a Title Case name in the client. Read tools carry readOnlyHint and can run without a prompt. The interactive views (cw_get_ticket, cw_view_board, cw_view_company, cw_view_time, cw_view_project, cw_view_schedule) render as MCP Apps cards on hosts that support it and as plain JSON everywhere else.\n\nWRITES ARE GATED. Write tools (create and update tickets, ticket notes, time and expense entries, cw_api_write) stay listed but refuse until you turn on PSA write mode; cw_api_write is the disruptive tier and also needs PSA allow destructive. Every write call also carries confirm: true. cw_status_gate explains a refusal, and cw_status_server reports exactly which fields are still empty.\n\nThis bundle runs on your own machine and holds the ConnectWise credentials there. Automate ships as a separate bundle from the same repository.",
   "author": {
     "name": "DivergeIT"
   },
@@ -55,7 +55,9 @@
         "CW_PSA_COMPANY_ID": "${user_config.psa_company_id}",
         "CW_PSA_PUBLIC_KEY": "${user_config.psa_public_key}",
         "CW_PSA_PRIVATE_KEY": "${user_config.psa_private_key}",
-        "CW_PSA_CLIENT_ID": "${user_config.psa_client_id}"
+        "CW_PSA_CLIENT_ID": "${user_config.psa_client_id}",
+        "CW_PSA_MODE": "${user_config.psa_write_mode}",
+        "CW_PSA_ALLOW_DESTRUCTIVE": "${user_config.psa_allow_destructive}"
       }
     }
   },
@@ -63,6 +65,10 @@
     {
       "name": "Server Status",
       "description": "Report which ConnectWise products are configured and what an unconfigured one still needs"
+    },
+    {
+      "name": "Write Gate Status",
+      "description": "Report whether writes and the disruptive tier are enabled per product, and which setting opens each"
     },
     {
       "name": "Search Tickets",
@@ -95,6 +101,14 @@
     {
       "name": "Search Purchase Orders",
       "description": "Search procurement purchase orders"
+    },
+    {
+      "name": "Search Catalog Items",
+      "description": "Search the procurement product catalog"
+    },
+    {
+      "name": "Search Products",
+      "description": "Search products sold on tickets, projects, opportunities and agreements"
     },
     {
       "name": "Search Expenses",
@@ -177,6 +191,22 @@
       "description": "List the checklist tasks on a ticket"
     },
     {
+      "name": "Get Configuration",
+      "description": "Get one configuration (managed asset) with its questions and custom fields"
+    },
+    {
+      "name": "Get Contact",
+      "description": "Get one contact with every phone and email"
+    },
+    {
+      "name": "Get Project",
+      "description": "Get one project with its phases, team and ticket progress"
+    },
+    {
+      "name": "Get Purchase Order",
+      "description": "Get one purchase order with its line items and receiving status"
+    },
+    {
       "name": "PSA API Get",
       "description": "GET any PSA endpoint that has no dedicated tool"
     },
@@ -195,6 +225,14 @@
     {
       "name": "View Time",
       "description": "Interactive summary of time entries for a period (this week by default), rolled up per member"
+    },
+    {
+      "name": "View Project",
+      "description": "Interactive project overview: budget vs actual hours, phases, team and project tickets"
+    },
+    {
+      "name": "View Schedule",
+      "description": "Interactive dispatch calendar: schedule entries per day and per member (next 7 days by default)"
     }
   ],
   "user_config": {
@@ -230,6 +268,20 @@
       "description": "The developer clientId GUID sent with every request. Issued by ConnectWise; required by the API.",
       "required": true,
       "sensitive": true
+    },
+    "psa_write_mode": {
+      "type": "boolean",
+      "title": "PSA write mode",
+      "description": "Allow the PSA write tools (create and update tickets, ticket notes, time and expense entries) to change live data. Off by default: write tools stay listed and refuse with a message naming this switch. Every write call also needs confirm: true.",
+      "required": false,
+      "default": false
+    },
+    "psa_allow_destructive": {
+      "type": "boolean",
+      "title": "PSA allow destructive",
+      "description": "Also allow the disruptive PSA tier: the raw cw_api_write passthrough, which can delete records. Needs PSA write mode on as well.",
+      "required": false,
+      "default": false
     }
   }
 }

@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ConnectWise Manage MCP Server</title>
-<meta name="description" content="Run ConnectWise PSA, Automate, and Control from Claude, ChatGPT, or any MCP client — locally or as a remote connector. 37 annotated tools.">
+<meta name="description" content="Run ConnectWise PSA and Automate from Claude, ChatGPT, or any MCP client — locally or as a remote connector. 86 annotated tools.">
 <meta property="og:title" content="ConnectWise Manage MCP Server">
-<meta property="og:description" content="Run ConnectWise PSA, Automate, and Control from any MCP client. 37 annotated tools, one code path across stdio, Streamable HTTP, and MCPB.">
+<meta property="og:description" content="Run ConnectWise PSA and Automate from any MCP client. 86 annotated tools, one code path across stdio, Streamable HTTP, and MCPB.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://patrickking67.github.io/connectwise-mcp/">
 <meta property="og:image" content="https://patrickking67.github.io/connectwise-mcp/social-preview.png">
@@ -85,8 +85,8 @@
     <p class="lede">
       <strong>connectwise-manage-mcp</strong> exposes ConnectWise PSA (Manage) to Claude,
       ChatGPT, Microsoft&nbsp;365 Copilot, or any other MCP client — locally over stdio or
-      as a remote connector. Automate (RMM) and Control (ScreenConnect, beta) register
-      alongside it when you configure them.
+      as a remote connector. Automate (RMM) registers
+      alongside it when you configure it.
     </p>
     <div class="cta">
       <a class="btn primary" href="https://github.com/patrickking67/connectwise-mcp">View on GitHub</a>
@@ -148,7 +148,7 @@ npm run mcpb:pack</code></pre>
 <section>
   <div class="wrap">
     <h2>What it covers</h2>
-    <p class="sub">Automate and Control register only when configured.</p>
+    <p class="sub">Automate registers only when configured. Writes are gated per product and off by default.</p>
     <div class="grid">
       <div class="card">
         <h3>PSA (Manage)</h3>
@@ -157,13 +157,9 @@ npm run mcpb:pack</code></pre>
       </div>
       <div class="card">
         <h3>Automate (RMM)</h3>
-        <p>Computers, scripts, and monitors, via a cached API token that refreshes on
-           <code>401</code>.</p>
-      </div>
-      <div class="card">
-        <h3>Control — beta</h3>
-        <p>ScreenConnect sessions through forms auth. Endpoint shapes are
-           version-dependent, so it stays a guarded passthrough.</p>
+        <p>Computers with software, services, drives, patching and alerts; clients,
+           scripts, commands and monitors; gated script runs and reboots; fleet, client
+           and computer views.</p>
       </div>
     </div>
   </div>

@@ -13,6 +13,9 @@ const CONFIG: AppConfig = {
     privateKey: "priv",
     clientId: "guid",
   },
+  // The write tests below exercise the tools themselves, so PSA writes are on;
+  // test/gate.test.ts covers the gate closed.
+  gates: { psa: { write: true, destructive: true } },
 };
 
 async function connect(config: AppConfig, fetchImpl: typeof fetch) {
@@ -81,20 +84,6 @@ describe("connectwise MCP server", () => {
     expect(tools.map((t) => t.name)).toContain("cw_automate_search_computers");
   });
 
-  it("registers screenconnect tools only when configured", async () => {
-    const base = await connect(CONFIG, vi.fn());
-    expect((await base.listTools()).tools.some((t) => t.name.startsWith("cw_control_"))).toBe(false);
-
-    const withSc = await connect(
-      {
-        ...CONFIG,
-        screenconnect: { baseUrl: "https://x.screenconnect.com", username: "u", password: "p" },
-      },
-      vi.fn(),
-    );
-    expect((await withSc.listTools()).tools.map((t) => t.name)).toContain("cw_control_list_sessions");
-  });
-
   it("searches tickets with default compact fields and strips nulls", async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
       jsonResponse(
@@ -134,7 +123,7 @@ describe("connectwise MCP server", () => {
 
     await client.callTool({
       name: "cw_update_ticket",
-      arguments: { id: 42, updates: { status: { name: "In Progress" } } },
+      arguments: { id: 42, updates: { status: { name: "In Progress" } }, confirm: true },
     });
 
     const [url, init] = fetchImpl.mock.calls[0];
@@ -168,6 +157,7 @@ describe("connectwise MCP server", () => {
     const result = await client.callTool({
       name: "cw_api_write",
       arguments: { method: "DELETE", path: "/service/tickets/1" },
+      // confirm omitted: the gate refuses before anything is sent.
     });
     expect(result.isError).toBe(true);
     expect(fetchImpl).not.toHaveBeenCalled();
@@ -189,7 +179,7 @@ describe("connectwise MCP server", () => {
     const client = await connect(CONFIG, fetchImpl);
     const result = await client.callTool({
       name: "cw_create_ticket",
-      arguments: { summary: "Broken printer" },
+      arguments: { summary: "Broken printer", confirm: true },
     });
     expect(result.isError).toBe(true);
     expect(fetchImpl).not.toHaveBeenCalled();

@@ -40,12 +40,12 @@ const server = createServer(config, {}, { configError });
 const transport = new StdioServerTransport();
 await server.connect(transport);
 
-const products = `psa=${config.psa ? "yes" : "no"} automate=${config.automate ? "yes" : "no"} control=${config.screenconnect ? "yes" : "no"}`;
+const products = `psa=${config.psa ? "yes" : "no"} automate=${config.automate ? "yes" : "no"}`;
 console.error(`${SERVER_NAME} v${SERVER_VERSION} running on stdio (${products})`);
-if (!config.psa && !config.automate && !config.screenconnect) {
+if (!config.psa && !config.automate) {
   console.error(
-    `${SERVER_NAME}: no ConnectWise product is configured, so only cw_status_server is registered. ` +
-      `Set CW_PSA_* for PSA (Manage), CW_AUTOMATE_* for Automate, or CW_SCREENCONNECT_* for Control. ` +
+    `${SERVER_NAME}: no ConnectWise product is configured, so only cw_status_server and cw_status_gate are registered. ` +
+      `Set CW_PSA_* for PSA (Manage) or CW_AUTOMATE_* for Automate. ` +
       `In Claude Desktop these come from Settings > Extensions — enable the extension and fill every ` +
       `field for the product. Call cw_status_server for the exact list.`,
   );

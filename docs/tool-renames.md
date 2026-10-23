@@ -22,6 +22,26 @@ changed in **0.4.0**. Nothing else moved: every other `cw_*` name is unchanged.
 | `cw_automate_view_computers` | interactive | Automate agents: online/offline, OS, client, last contact |
 | `cw_control_view_sessions` | interactive | Control sessions: machine, user, OS, connected or not |
 
+## Removed in 0.5.0
+
+ConnectWise Control (ScreenConnect) support was removed: `cw_control_list_sessions`,
+`cw_control_api_write`, `cw_control_view_sessions` and the `CW_SCREENCONNECT_*` settings no longer
+exist, and the `connectwise-control` bundle is no longer built.
+
+## New in 0.5.0
+
+| Name | Kind | What it is |
+| --- | --- | --- |
+| `cw_status_gate` | read | The write gate per product: write mode, allow destructive, and the env var / Settings field that opens each |
+| `cw_get_configuration`, `cw_get_contact`, `cw_get_project`, `cw_get_purchase_order` | read | One PSA record in full (project with phases, team and ticket progress; PO with line items) |
+| `cw_search_catalog_items`, `cw_search_products` | read | The procurement catalog, and products sold on tickets/projects/opportunities/agreements |
+| `cw_view_project`, `cw_view_schedule` | interactive | One project; the dispatch calendar |
+| `cw_automate_get_computer_*` (software, services, drives, alerts, patching, hardware, monitors, script_history, command_history), `cw_automate_get_command_result`, `cw_automate_get_client`, `cw_automate_get_script` | read | One Automate machine or record in detail |
+| `cw_automate_list_*` (locations, contacts, groups, scripts, script_schedules, running_scripts, alerts, monitors, commands, tickets, users, patch_history, network_devices), `cw_automate_test_connection` | read | Automate lists and a login check |
+| `cw_automate_run_script`, `cw_automate_run_command`, `cw_automate_run_shell_command`, `cw_automate_update_client`, `cw_automate_update_location` | write | Gated by `CW_AUTOMATE_MODE=write` |
+| `cw_automate_reboot_computer`, `cw_automate_delete_script_schedule`, `cw_automate_uninstall_software` | write (disruptive) | Also need `CW_AUTOMATE_ALLOW_DESTRUCTIVE=true` |
+| `cw_automate_view_fleet`, `cw_automate_view_computer`, `cw_automate_view_client` | interactive | Fleet dashboard, one machine (with Run script / Reboot), one client |
+
 `cw_get_ticket` keeps its name — `get` is a read verb and the card is a presentation choice — but
 its `ui://` resource moved from `ui://connectwise-manage/ticket-card` to
 `ui://connectwise/ticket.html`, so every view now lives under one scheme.

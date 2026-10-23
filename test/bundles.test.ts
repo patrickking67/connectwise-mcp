@@ -1,6 +1,6 @@
 // The per-product bundles.
 //
-// Three .mcpb bundles are built from this one server: PSA, Automate and Control,
+// Two .mcpb bundles are built from this one server: PSA and Automate,
 // each from a manifest under manifests/ that configures exactly one product.
 // Two things make that work, and both are pinned here: the stdio entry starts
 // with any one product configured (it used to insist on PSA) — and, since 0.4.0,
@@ -34,11 +34,6 @@ const PRODUCT_ENV: Record<Exclude<ToolSurface, "server">, Record<string, string>
     CW_AUTOMATE_PASSWORD: "mock-password-not-real",
     CW_AUTOMATE_CLIENT_ID: "mock-client-id",
   },
-  control: {
-    CW_SCREENCONNECT_URL: "https://control.example",
-    CW_SCREENCONNECT_USERNAME: "mock-user",
-    CW_SCREENCONNECT_PASSWORD: "mock-password-not-real",
-  },
 };
 
 /** Environment with every CW_* variable removed, so only what a case adds is set. */
@@ -70,8 +65,8 @@ describe("stdio entry startup", () => {
     // with: Claude Desktop then shows "server disconnected" and nothing else.
     const result = await startStdio({});
     expect(result.refused).toBe(false);
-    expect(result.stderr).toMatch(/running on stdio \(psa=no automate=no control=no\)/);
-    expect(result.stderr).toMatch(/only cw_status_server is registered/);
+    expect(result.stderr).toMatch(/running on stdio \(psa=no automate=no\)/);
+    expect(result.stderr).toMatch(/only cw_status_server and cw_status_gate are registered/);
     expect(result.stderr).toMatch(/Settings > Extensions/);
   });
 
@@ -86,10 +81,10 @@ describe("stdio entry startup", () => {
     expect(result.stderr).toMatch(/Automate username/);
   });
 
-  it.each(["psa", "automate", "control"] as Array<Exclude<ToolSurface, "server">>)("starts with only %s configured", async (surface) => {
+  it.each(["psa", "automate"] as Array<Exclude<ToolSurface, "server">>)("starts with only %s configured", async (surface) => {
     const result = await startStdio(PRODUCT_ENV[surface]);
     expect(result.refused).toBe(false);
-    expect(result.stderr).toMatch(new RegExp(`${surface === "control" ? "control" : surface}=yes`));
+    expect(result.stderr).toMatch(new RegExp(`${surface}=yes`));
   });
 });
 
@@ -98,7 +93,6 @@ describe("per-product manifests", () => {
   const bundles: Array<{ surface: ToolSurface; name: string; envPrefix: string }> = [
     { surface: "psa", name: "connectwise-psa", envPrefix: "CW_PSA_" },
     { surface: "automate", name: "connectwise-automate", envPrefix: "CW_AUTOMATE_" },
-    { surface: "control", name: "connectwise-control", envPrefix: "CW_SCREENCONNECT_" },
   ];
 
   it.each(bundles)("$name lists exactly its product's tools and credentials", ({ surface, name, envPrefix }) => {
@@ -115,19 +109,38 @@ describe("per-product manifests", () => {
     expect(Object.keys(env).length).toBeGreaterThan(0);
     for (const variable of Object.keys(env)) expect(variable.startsWith(envPrefix)).toBe(true);
     // Every credential the bundle asks for is required: there is no optional
-    // product in a single-product bundle. The one exception is the two-factor
-    // seed, which most accounts should not need.
+    // product in a single-product bundle. The exceptions are the two-factor
+    // seed, which most accounts should not need, and the write-gate switches,
+    // which are optional booleans that default to closed.
     for (const [key, field] of Object.entries(manifest.user_config) as Array<
-      [string, { required: boolean; title: string; sensitive?: boolean }]
+      [string, { required: boolean; title: string; sensitive?: boolean; type?: string; default?: unknown }]
     >) {
       if (key.endsWith("_totp_secret")) {
         expect(field.required, key).toBe(false);
         expect(field.sensitive, key).toBe(true);
         continue;
       }
+      if (key.endsWith("_write_mode") || key.endsWith("_allow_destructive")) {
+        expect(field.required, key).toBe(false);
+        expect(field.type, key).toBe("boolean");
+        expect(field.default, key).toBe(false);
+        continue;
+      }
       expect(field.required, key).toBe(true);
       expect(field.title, key).not.toMatch(/optional/i);
     }
     expect(manifest.icon).toBe(`assets/connectwise-${surface}-512.png`);
+  });
+});
+
+describe("write-gate switches in the bundles", () => {
+  it.each([
+    { name: "connectwise-psa", prefix: "CW_PSA", key: "psa" },
+    { name: "connectwise-automate", prefix: "CW_AUTOMATE", key: "automate" },
+  ])("$name maps its gate switches to the env the server reads", ({ name, prefix, key }) => {
+    const manifest = JSON.parse(readFileSync(new URL(`../manifests/${name}.json`, import.meta.url), "utf8"));
+    const env = manifest.server.mcp_config.env as Record<string, string>;
+    expect(env[`${prefix}_MODE`]).toBe(`\${user_config.${key}_write_mode}`);
+    expect(env[`${prefix}_ALLOW_DESTRUCTIVE`]).toBe(`\${user_config.${key}_allow_destructive}`);
   });
 });

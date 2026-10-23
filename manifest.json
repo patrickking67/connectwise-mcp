@@ -3,9 +3,9 @@
   "manifest_version": "0.4",
   "name": "connectwise",
   "display_name": "ConnectWise",
-  "version": "0.4.0",
-  "description": "ConnectWise Manage (PSA), with optional Automate and Control, in one MCP server. Read, write, and an interactive ticket card.",
-  "long_description": "One connector for the ConnectWise stack. PSA (Manage) is always available; Automate and Control (ScreenConnect) register themselves only when their credentials are configured, so an unconfigured integration contributes no tools rather than tools that fail.\n\nEvery tool is named cw_* and shows a Title Case name in the client. Tools come in three kinds and say which they are: read-only tools carry readOnlyHint and can run without a prompt; write tools declare themselves as writes; cw_get_ticket is interactive, rendering an MCP Apps card with an internal-note box on hosts that support it and plain JSON everywhere else.\n\nPSA covers tickets, companies, contacts, configurations, time and expense entries, projects, agreements, invoices, opportunities, members, activities and schedule entries, plus board metadata and read/write escape hatches for endpoints without a dedicated tool.\n\nUNLIKE THE OTHER CONNECTORS IN THIS FLEET, THIS ONE WRITES. It can create and update tickets, add ticket notes, and create time and expense entries. Three guardrails are not optional and must not be weakened: the raw read tools cannot issue anything but GET, cw_api_write refuses DELETE without confirm: true, and the Automate and Control write tools refuse every call without it.\n\nThis bundle is the LOCAL install: it runs on your own machine and holds the ConnectWise credentials there. The same tools are also served by a remote deployment on Azure Container Apps for clients that cannot launch a local process — see the repository documentation.",
+  "version": "0.5.0",
+  "description": "ConnectWise PSA (Manage), with optional Automate (RMM), in one MCP server. Read tools, gated write tools, and interactive views.",
+  "long_description": "One connector for ConnectWise PSA (Manage) and Automate (RMM). PSA is always available; Automate registers itself only when its credentials are configured, so an unconfigured integration contributes no tools rather than tools that fail.\n\nEvery tool is named cw_* (cw_automate_* for Automate) and shows a Title Case name in the client. Tools come in three kinds and say which they are: read tools carry readOnlyHint and can run without a prompt; write tools declare themselves as writes; interactive views (cw_get_ticket, cw_view_*, cw_automate_view_*) render MCP Apps cards on hosts that support it and plain JSON everywhere else.\n\nPSA covers tickets, companies, contacts, configurations, time and expense entries, projects with phases, procurement (catalog, products, purchase orders), agreements, invoices, opportunities, members, activities and the dispatch schedule. Automate covers computers with their software, services, drives, patching, hardware, monitors, alerts and script/command history; clients, locations, contacts, groups, scripts, schedules, commands, tickets, users, patch history and network devices.\n\nWRITES ARE GATED PER PRODUCT. Write tools stay listed but refuse until PSA write mode / Automate write mode is turned on; the disruptive tier (reboots, disruptive agent commands, deletes, uninstalls, and the raw *_api_write passthroughs) additionally needs the matching allow-destructive switch; and every write call carries confirm: true. cw_status_gate explains any refusal.\n\nThis bundle is the LOCAL install: it runs on your own machine and holds the ConnectWise credentials there. The same tools are also served by a remote deployment for clients that cannot launch a local process — see the repository documentation.",
   "author": {
     "name": "DivergeIT"
   },
@@ -33,11 +33,11 @@
         "CW_AUTOMATE_USERNAME": "${user_config.automate_username}",
         "CW_AUTOMATE_PASSWORD": "${user_config.automate_password}",
         "CW_AUTOMATE_CLIENT_ID": "${user_config.automate_client_id}",
-        "CW_SCREENCONNECT_URL": "${user_config.screenconnect_url}",
-        "CW_SCREENCONNECT_USERNAME": "${user_config.screenconnect_username}",
-        "CW_SCREENCONNECT_PASSWORD": "${user_config.screenconnect_password}",
         "CW_AUTOMATE_TOTP_SECRET": "${user_config.automate_totp_secret}",
-        "CW_SCREENCONNECT_TOTP_SECRET": "${user_config.screenconnect_totp_secret}"
+        "CW_PSA_MODE": "${user_config.psa_write_mode}",
+        "CW_PSA_ALLOW_DESTRUCTIVE": "${user_config.psa_allow_destructive}",
+        "CW_AUTOMATE_MODE": "${user_config.automate_write_mode}",
+        "CW_AUTOMATE_ALLOW_DESTRUCTIVE": "${user_config.automate_allow_destructive}"
       }
     }
   },
@@ -45,6 +45,10 @@
     {
       "name": "Server Status",
       "description": "Report which ConnectWise products are configured and what an unconfigured one still needs"
+    },
+    {
+      "name": "Write Gate Status",
+      "description": "Report whether writes and the disruptive tier are enabled per product, and which setting opens each"
     },
     {
       "name": "Search Tickets",
@@ -77,6 +81,14 @@
     {
       "name": "Search Purchase Orders",
       "description": "Search procurement purchase orders"
+    },
+    {
+      "name": "Search Catalog Items",
+      "description": "Search the procurement product catalog"
+    },
+    {
+      "name": "Search Products",
+      "description": "Search products sold on tickets, projects, opportunities and agreements"
     },
     {
       "name": "Search Expenses",
@@ -159,6 +171,22 @@
       "description": "List the checklist tasks on a ticket"
     },
     {
+      "name": "Get Configuration",
+      "description": "Get one configuration (managed asset) with its questions and custom fields"
+    },
+    {
+      "name": "Get Contact",
+      "description": "Get one contact with every phone and email"
+    },
+    {
+      "name": "Get Project",
+      "description": "Get one project with its phases, team and ticket progress"
+    },
+    {
+      "name": "Get Purchase Order",
+      "description": "Get one purchase order with its line items and receiving status"
+    },
+    {
       "name": "PSA API Get",
       "description": "GET any PSA endpoint that has no dedicated tool"
     },
@@ -179,40 +207,184 @@
       "description": "Interactive summary of time entries for a period (this week by default), rolled up per member"
     },
     {
+      "name": "View Project",
+      "description": "Interactive project overview: budget vs actual hours, phases, team and project tickets"
+    },
+    {
+      "name": "View Schedule",
+      "description": "Interactive dispatch calendar: schedule entries per day and per member (next 7 days by default)"
+    },
+    {
       "name": "Search Automate Computers",
-      "description": "Search Automate agents (computers)"
+      "description": "Search Automate agents (computers) by name, client, location, status or any condition"
     },
     {
       "name": "Get Automate Computer",
       "description": "Get one Automate agent in full detail"
     },
     {
+      "name": "Get Automate Computer Software",
+      "description": "List the software installed on one computer"
+    },
+    {
+      "name": "Get Automate Computer Services",
+      "description": "List the Windows services on one computer, with state and startup type"
+    },
+    {
+      "name": "Get Automate Computer Drives",
+      "description": "List one computer's drives with size, free space and SMART status"
+    },
+    {
+      "name": "Get Automate Computer Alerts",
+      "description": "List the alerts raised for one computer"
+    },
+    {
+      "name": "Get Automate Computer Monitors",
+      "description": "List the monitors running against one computer and their state"
+    },
+    {
+      "name": "Get Automate Computer Script History",
+      "description": "List the scripts that ran on one computer and how they ended"
+    },
+    {
+      "name": "Get Automate Computer Command History",
+      "description": "List the commands sent to one computer, with output"
+    },
+    {
+      "name": "Get Automate Computer Patching",
+      "description": "Patch compliance for one computer: stats, effective policy and missing or failed updates"
+    },
+    {
+      "name": "Get Automate Computer Hardware",
+      "description": "Operating system, BIOS, processors and printers of one computer"
+    },
+    {
+      "name": "Get Automate Command Result",
+      "description": "Read the status and output of a queued command"
+    },
+    {
       "name": "List Automate Clients",
       "description": "List Automate clients (companies)"
+    },
+    {
+      "name": "Get Automate Client",
+      "description": "Get one Automate client with its locations"
+    },
+    {
+      "name": "List Automate Locations",
+      "description": "List Automate locations (sites), optionally for one client"
+    },
+    {
+      "name": "List Automate Contacts",
+      "description": "List Automate contacts, optionally for one client"
+    },
+    {
+      "name": "List Automate Groups",
+      "description": "List Automate computer groups"
+    },
+    {
+      "name": "List Automate Scripts",
+      "description": "List Automate scripts with their folder and parameters"
+    },
+    {
+      "name": "Get Automate Script",
+      "description": "Get one Automate script's definition and parameters"
+    },
+    {
+      "name": "List Automate Script Schedules",
+      "description": "List scheduled scripts, server-wide or for one computer"
+    },
+    {
+      "name": "List Automate Running Scripts",
+      "description": "List scripts running now, server-wide or on one computer"
+    },
+    {
+      "name": "List Automate Alerts",
+      "description": "List alerts across the Automate server"
+    },
+    {
+      "name": "List Automate Monitors",
+      "description": "List Automate monitors and their state"
+    },
+    {
+      "name": "List Automate Commands",
+      "description": "List the agent commands Automate can queue, with their ids"
+    },
+    {
+      "name": "List Automate Tickets",
+      "description": "List Automate's own tickets"
+    },
+    {
+      "name": "List Automate Users",
+      "description": "List Automate users (technicians) and whether each is an integrator account"
+    },
+    {
+      "name": "List Automate Network Devices",
+      "description": "List network devices the Automate probes discovered"
+    },
+    {
+      "name": "List Automate Patch History",
+      "description": "List patch install history, server-wide or for one computer"
+    },
+    {
+      "name": "Test Automate Connection",
+      "description": "Prove the Automate login works and report the server time and the login account's type"
     },
     {
       "name": "Automate API Get",
       "description": "GET any Automate endpoint that has no dedicated tool"
     },
     {
+      "name": "Run Automate Script",
+      "description": "Run an Automate script now on one or more computers — writes to ConnectWise"
+    },
+    {
+      "name": "Run Automate Command",
+      "description": "Queue an Automate agent command on a computer (disruptive commands need the destructive gate) — writes to ConnectWise"
+    },
+    {
+      "name": "Run Automate Shell Command",
+      "description": "Run a cmd or PowerShell command on a computer through the Automate agent — writes to ConnectWise"
+    },
+    {
+      "name": "Reboot Automate Computer",
+      "description": "Reboot a computer through the Automate agent — writes to ConnectWise"
+    },
+    {
+      "name": "Update Automate Client",
+      "description": "Update contact and address fields on an Automate client — writes to ConnectWise"
+    },
+    {
+      "name": "Update Automate Location",
+      "description": "Update contact and address fields on an Automate location — writes to ConnectWise"
+    },
+    {
+      "name": "Delete Automate Script Schedule",
+      "description": "Delete a script schedule — writes to ConnectWise"
+    },
+    {
+      "name": "Uninstall Automate Computer Software",
+      "description": "Uninstall an application from a computer through the Automate agent — writes to ConnectWise"
+    },
+    {
       "name": "Automate API Write",
       "description": "POST, PUT, PATCH or DELETE an Automate endpoint, acting on live RMM agents — writes to ConnectWise"
+    },
+    {
+      "name": "View Automate Fleet",
+      "description": "Interactive fleet dashboard: online/offline, servers down, reboots pending, quiet agents, stale AV, by client"
     },
     {
       "name": "View Automate Computers",
       "description": "Interactive table of Automate agents: online or offline, OS, client and last contact"
     },
     {
-      "name": "List Control Sessions",
-      "description": "List ConnectWise Control host sessions (beta)"
+      "name": "View Automate Computer",
+      "description": "Interactive detail of one Automate computer with drives, patching, alerts, script history and Run script / Reboot buttons"
     },
     {
-      "name": "Control API Write",
-      "description": "Call a ConnectWise Control endpoint; POST needs confirm: true (beta) — writes to ConnectWise"
-    },
-    {
-      "name": "View Control Sessions",
-      "description": "Interactive table of Control sessions: machine, user, OS, connected or not, last seen (beta)"
+      "name": "View Automate Client",
+      "description": "Interactive overview of one Automate client: locations, computers online/offline, OS mix, reboots pending"
     }
   ],
   "tools_generated": false,
@@ -221,7 +393,6 @@
     "psa",
     "manage",
     "automate",
-    "screenconnect",
     "msp",
     "mcp"
   ],
@@ -304,31 +475,33 @@
       "required": false,
       "sensitive": true
     },
-    "screenconnect_url": {
-      "type": "string",
-      "title": "Control (ScreenConnect) URL (optional)",
-      "description": "e.g. https://control.example.com. Leave blank to register no Control tools.",
-      "required": false
-    },
-    "screenconnect_username": {
-      "type": "string",
-      "title": "Control username (optional)",
+    "psa_write_mode": {
+      "type": "boolean",
+      "title": "PSA write mode",
+      "description": "Allow the PSA write tools (create and update tickets, ticket notes, time and expense entries) to change live data. Off by default: write tools stay listed and refuse with a message naming this switch. Every write call also needs confirm: true.",
       "required": false,
-      "description": "Control account username. Only used when the Control URL is set."
+      "default": false
     },
-    "screenconnect_password": {
-      "type": "string",
-      "title": "Control password (optional)",
+    "psa_allow_destructive": {
+      "type": "boolean",
+      "title": "PSA allow destructive",
+      "description": "Also allow the disruptive PSA tier: the raw cw_api_write passthrough, which can delete records. Needs PSA write mode on as well.",
       "required": false,
-      "sensitive": true,
-      "description": "Control account password. Supply it from your secret manager."
+      "default": false
     },
-    "screenconnect_totp_secret": {
-      "type": "string",
-      "title": "Control TOTP secret (optional)",
-      "description": "Only needed when the Control login account keeps two-factor authentication enabled. Paste the same base32 seed the account's authenticator was enrolled with and the connector generates each one-time code itself. The cleaner alternative is a dedicated API service account exempt from two-factor; leave this blank then.",
+    "automate_write_mode": {
+      "type": "boolean",
+      "title": "Automate write mode",
+      "description": "Allow the Automate write tools (run a script, queue an agent command or shell command, update a client or location) to act on live machines. Off by default: write tools stay listed and refuse with a message naming this switch. Every write call also needs confirm: true.",
       "required": false,
-      "sensitive": true
+      "default": false
+    },
+    "automate_allow_destructive": {
+      "type": "boolean",
+      "title": "Automate allow destructive",
+      "description": "Also allow the disruptive Automate tier: reboots, disruptive agent commands (shutdown, service stop, logoff…), script-schedule deletes, software uninstalls and the raw cw_automate_api_write passthrough. Needs Automate write mode on as well.",
+      "required": false,
+      "default": false
     }
   },
   "icon": "assets/connectwise-512.png",

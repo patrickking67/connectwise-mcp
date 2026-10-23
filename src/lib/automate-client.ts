@@ -2,9 +2,39 @@ import type { AutomateConfig } from "../config.js";
 import { CwApiError, type ClientDeps, type Query } from "./psa-client.js";
 import { looksLikeTwoFactorChallenge, totp } from "./totp.js";
 
-interface TokenResponse {
-  AccessToken?: string;
-  ExpirationDate?: string;
+/**
+ * Read a field from the apitoken reply without caring about key casing.
+ * Automate answers in PascalCase, but proxies and newer builds have been seen
+ * camelCasing it, and a missed key here reads as "no token" instead of a login.
+ */
+function field(body: Record<string, unknown>, ...names: string[]): unknown {
+  const wanted = new Set(names.map((n) => n.toLowerCase()));
+  for (const [key, value] of Object.entries(body)) {
+    if (wanted.has(key.toLowerCase())) return value;
+  }
+  return undefined;
+}
+
+/**
+ * A 200 from /apitoken without a token is a refusal, not a success. Say why in
+ * terms the operator can act on, and never echo anything that could be a secret.
+ */
+export function describeTokenlessReply(body: Record<string, unknown>, sentPasscode: boolean): string {
+  const twoFactor = field(body, "IsTwoFactorRequired", "TwoFactorRequired", "IsTwoFactorRequested");
+  if (twoFactor === true || twoFactor === "true") {
+    return sentPasscode
+      ? "Automate asked for a two-factor passcode and rejected the one generated from CW_AUTOMATE_TOTP_SECRET. Check the seed and the machine clock."
+      : "Automate requires two-factor for this account on the API, even if the browser login does not prompt (a trusted device or SSO can hide it). " +
+          "Tick Integrator on the Automate user (integrator accounts are exempt from MFA and are meant for API logins), " +
+          "or set CW_AUTOMATE_TOTP_SECRET.";
+  }
+  const message = field(body, "Message", "message", "error", "error_description");
+  const keys = Object.keys(body).join(", ") || "(empty body)";
+  return (
+    "Automate authentication returned no AccessToken" +
+    (typeof message === "string" && message ? `: ${message.slice(0, 200)}` : "") +
+    ` (reply fields: ${keys})`
+  );
 }
 
 /**
@@ -24,6 +54,16 @@ export class AutomateClient {
   ) {
     this.apiBase = `${cfg.baseUrl}/cwa/api/v1`;
     this.fetchImpl = deps.fetchImpl ?? fetch;
+  }
+
+  /** The configured login name (not a secret; reported by cw_automate_test_connection). */
+  get username(): string {
+    return this.cfg.username;
+  }
+
+  /** The Automate server's base URL. */
+  get serverUrl(): string {
+    return this.cfg.baseUrl;
   }
 
   private async ensureToken(): Promise<string> {
@@ -72,13 +112,27 @@ export class AutomateClient {
         response.status,
       );
     }
-    const body = (await response.json()) as TokenResponse;
-    if (!body.AccessToken) {
-      throw new CwApiError("Automate authentication returned no AccessToken", 500);
+    const raw = await response.text();
+    let body: Record<string, unknown> = {};
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") body = parsed as Record<string, unknown>;
+    } catch {
+      throw new CwApiError(
+        `Automate token endpoint did not return JSON (got ${response.headers.get("content-type") ?? "no content-type"}); ` +
+          `CW_AUTOMATE_URL may point at a login page or proxy instead of the Automate server root`,
+        502,
+      );
     }
-    const expiresAt = body.ExpirationDate ? Date.parse(body.ExpirationDate) : Date.now() + 30 * 60_000;
-    this.token = { value: body.AccessToken, expiresAt };
-    return body.AccessToken;
+    const accessToken = field(body, "AccessToken", "access_token", "token");
+    if (typeof accessToken !== "string" || !accessToken) {
+      throw new CwApiError(describeTokenlessReply(body, Boolean(credentials.TwoFactorPasscode)), 401);
+    }
+    const expiration = field(body, "ExpirationDate", "expires");
+    const parsedExpiry = typeof expiration === "string" ? Date.parse(expiration) : NaN;
+    const expiresAt = Number.isFinite(parsedExpiry) ? parsedExpiry : Date.now() + 30 * 60_000;
+    this.token = { value: accessToken, expiresAt };
+    return accessToken;
   }
 
   async request<T = unknown>(
@@ -128,4 +182,37 @@ export class AutomateClient {
   async get<T = unknown>(path: string, query?: Query): Promise<T> {
     return this.request<T>("GET", path, { query });
   }
+
+  /**
+   * One page of an Automate list endpoint. Automate sends no paging headers, so
+   * `hasMore` is inferred: a full page means there may be another.
+   */
+  async list<T = Record<string, unknown>>(path: string, params: AutomateListParams = {}): Promise<AutomateListResult<T>> {
+    const page = params.page ?? 1;
+    const pageSize = params.pageSize ?? 25;
+    const data = await this.get<unknown>(path, {
+      condition: params.condition,
+      includefields: params.includeFields,
+      orderby: params.orderBy,
+      page,
+      pagesize: pageSize,
+    });
+    const items = (Array.isArray(data) ? data : []) as T[];
+    return { items, page, pageSize, hasMore: items.length >= pageSize };
+  }
+}
+
+export interface AutomateListParams {
+  condition?: string;
+  includeFields?: string;
+  orderBy?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AutomateListResult<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
 }

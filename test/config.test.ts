@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { incompleteConfigMessage, loadConfig, normalizePsaSite, productStatus } from "../src/config.js";
+import { gateFromEnv, incompleteConfigMessage, loadConfig, normalizePsaSite, productStatus } from "../src/config.js";
 
 describe("normalizePsaSite", () => {
   it("adds the api- prefix for cloud hosts", () => {
@@ -82,21 +82,6 @@ describe("loadConfig", () => {
     }
   });
 
-  it("enables screenconnect only when all three vars are present", () => {
-    expect(loadConfig(PSA_ENV).screenconnect).toBeUndefined();
-    const config = loadConfig({
-      ...PSA_ENV,
-      CW_SCREENCONNECT_URL: "https://x.screenconnect.com/",
-      CW_SCREENCONNECT_USERNAME: "admin",
-      CW_SCREENCONNECT_PASSWORD: "pw",
-    });
-    expect(config.screenconnect).toEqual({
-      baseUrl: "https://x.screenconnect.com",
-      username: "admin",
-      password: "pw",
-    });
-  });
-
   it("treats a host's unexpanded ${user_config.x} placeholder as unset", () => {
     // Claude Desktop substitutes optional user_config fields the user never
     // filled in as the literal template text, not as an empty string.
@@ -107,13 +92,11 @@ describe("loadConfig", () => {
       CW_AUTOMATE_USERNAME: "${user_config.automate_username}",
       CW_AUTOMATE_PASSWORD: "${user_config.automate_password}",
       CW_AUTOMATE_CLIENT_ID: "${user_config.automate_client_id}",
-      CW_SCREENCONNECT_URL: "${user_config.screenconnect_url}",
-      CW_SCREENCONNECT_USERNAME: "${user_config.screenconnect_username}",
-      CW_SCREENCONNECT_PASSWORD: "${user_config.screenconnect_password}",
+      CW_AUTOMATE_MODE: "${user_config.automate_write_mode}",
     });
     expect(config.psa?.version).toBeUndefined();
     expect(config.automate).toBeUndefined();
-    expect(config.screenconnect).toBeUndefined();
+    expect(config.gates?.automate).toEqual({ write: false, destructive: false });
   });
 
   it("rejects a half-filled Automate form and names the field that is empty", () => {
@@ -129,16 +112,6 @@ describe("loadConfig", () => {
         CW_AUTOMATE_CLIENT_ID: "cid",
       }),
     ).toThrow(/CW_AUTOMATE_USERNAME \(Settings > Extensions field "Automate username"\)/);
-  });
-
-  it("rejects a half-filled Control form the same way", () => {
-    expect(() =>
-      loadConfig({
-        ...PSA_ENV,
-        CW_SCREENCONNECT_URL: "https://x.screenconnect.com",
-        CW_SCREENCONNECT_USERNAME: "admin",
-      }),
-    ).toThrow(/CW_SCREENCONNECT_PASSWORD \(Settings > Extensions field "Control password"\)/);
   });
 
   it("names every missing PSA variable with its settings field", () => {
@@ -166,9 +139,36 @@ describe("productStatus", () => {
   });
 
   it("builds a message a Claude Desktop user can act on", () => {
-    const { missing } = productStatus({}, "screenconnect");
-    const message = incompleteConfigMessage("screenconnect", missing);
-    expect(message).toContain("ConnectWise Control (ScreenConnect)");
-    expect(message).toContain('Settings > Extensions field "Control (ScreenConnect) URL"');
+    const { missing } = productStatus({}, "automate");
+    const message = incompleteConfigMessage("automate", missing);
+    expect(message).toContain("ConnectWise Automate");
+    expect(message).toContain('Settings > Extensions field "Automate URL"');
+  });
+});
+
+describe("write gate", () => {
+  it("is closed unless the operator opens it", () => {
+    expect(gateFromEnv({}, "psa")).toEqual({ write: false, destructive: false });
+    expect(gateFromEnv({ CW_PSA_MODE: "read" }, "psa")).toEqual({ write: false, destructive: false });
+  });
+
+  it("opens on write, or on true (what a Claude Desktop boolean field sends)", () => {
+    expect(gateFromEnv({ CW_AUTOMATE_MODE: "write" }, "automate").write).toBe(true);
+    expect(gateFromEnv({ CW_AUTOMATE_MODE: "true" }, "automate").write).toBe(true);
+    expect(gateFromEnv({ CW_AUTOMATE_MODE: "false" }, "automate").write).toBe(false);
+  });
+
+  it("keeps the products separate and the destructive switch separate", () => {
+    const env = { CW_PSA_MODE: "write", CW_AUTOMATE_ALLOW_DESTRUCTIVE: "true" };
+    expect(gateFromEnv(env, "psa")).toEqual({ write: true, destructive: false });
+    expect(gateFromEnv(env, "automate")).toEqual({ write: false, destructive: true });
+  });
+
+  it("is carried on the loaded configuration", () => {
+    const config = loadConfig({ CW_PSA_MODE: "write", CW_PSA_ALLOW_DESTRUCTIVE: "true" });
+    expect(config.gates).toEqual({
+      psa: { write: true, destructive: true },
+      automate: { write: false, destructive: false },
+    });
   });
 });

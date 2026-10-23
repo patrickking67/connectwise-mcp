@@ -7,6 +7,7 @@ import {
   type ProductKey,
 } from "../config.js";
 import { jsonResult } from "../lib/format.js";
+import { gateReport } from "./gate.js";
 import { registerSpecTool, type ToolSpec } from "./spec.js";
 
 /**
@@ -20,6 +21,13 @@ export const STATUS_SPECS = {
     name: "cw_status_server",
     title: "Server Status",
     summary: "Report which ConnectWise products are configured and what an unconfigured one still needs",
+    surface: "server",
+    kind: "read",
+  },
+  gate: {
+    name: "cw_status_gate",
+    title: "Write Gate Status",
+    summary: "Report whether writes and the disruptive tier are enabled per product, and which setting opens each",
     surface: "server",
     kind: "read",
   },
@@ -38,7 +46,7 @@ export interface ServerStatusInput {
   env?: NodeJS.ProcessEnv;
 }
 
-const PRODUCT_KEYS: ProductKey[] = ["psa", "automate", "screenconnect"];
+const PRODUCT_KEYS: ProductKey[] = ["psa", "automate"];
 
 export function serverStatus(input: ServerStatusInput): Record<string, unknown> {
   const env = input.env ?? process.env;
@@ -48,7 +56,7 @@ export function serverStatus(input: ServerStatusInput): Record<string, unknown> 
     const entry: Record<string, unknown> = {
       product: PRODUCT_LABEL[key],
       configured,
-      toolPrefix: key === "psa" ? "cw_" : key === "automate" ? "cw_automate_" : "cw_control_",
+      toolPrefix: key === "psa" ? "cw_" : "cw_automate_",
     };
     if (!configured) {
       entry.state = set.length === 0 ? "not configured" : "incomplete";
@@ -72,7 +80,7 @@ export function serverStatus(input: ServerStatusInput): Record<string, unknown> 
     products,
     ...(configured === 0 && !input.configError
       ? {
-          hint: "No ConnectWise product is configured, so only this status tool is registered. Configure PSA, Automate or Control and restart.",
+          hint: "No ConnectWise product is configured, so only this status tool is registered. Configure PSA or Automate and restart.",
         }
       : {}),
   };
@@ -84,8 +92,17 @@ export function registerStatusTools(server: McpServer, input: ServerStatusInput)
     STATUS_SPECS.server,
     {
       description:
-        "Report this server's version, which ConnectWise products (PSA, Automate, Control) are configured, how many tools are registered, and — for any product that is not configured or only partly configured — exactly which environment variables and Settings > Extensions fields are missing. Safe to call any time; the first thing to run when tools are absent.",
+        "Report this server's version, which ConnectWise products (PSA, Automate) are configured, how many tools are registered, and — for any product that is not configured or only partly configured — exactly which environment variables and Settings > Extensions fields are missing. Safe to call any time; the first thing to run when tools are absent.",
     },
     async () => jsonResult(serverStatus(input)),
+  );
+  registerSpecTool(
+    server,
+    STATUS_SPECS.gate,
+    {
+      description:
+        "Report the write gate for each ConnectWise product: whether write tools may run (CW_PSA_MODE / CW_AUTOMATE_MODE = write), whether the disruptive tier (reboot, shutdown, service stop, deletes, raw *_api_write) is allowed (CW_*_ALLOW_DESTRUCTIVE = true), and the Settings > Extensions field for each. Call it when a write tool refuses. Makes no API call.",
+    },
+    async () => jsonResult(gateReport(server, ["psa", "automate"])),
   );
 }

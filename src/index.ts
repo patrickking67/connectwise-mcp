@@ -137,7 +137,6 @@ const server = app.listen(config.port, "0.0.0.0", () => {
   console.log(`${SERVER_NAME} v${SERVER_VERSION} listening on :${config.port}`);
   console.log(`  PSA (Manage) tools:  ${config.psa ? `enabled (${config.psa.site})` : "disabled — set CW_PSA_* env vars"}`);
   console.log(`  Automate tools:      ${config.automate ? `enabled (${config.automate.baseUrl})` : "disabled — set CW_AUTOMATE_* env vars"}`);
-  console.log(`  ScreenConnect (beta):${config.screenconnect ? ` enabled (${config.screenconnect.baseUrl})` : " disabled — set CW_SCREENCONNECT_* env vars"}`);
   console.log(`  Entra per-user auth:  ${config.entra ? `enabled (tenant ${config.entra.tenantId})` : "disabled — set AZURE_TENANT_ID + AZURE_CLIENT_ID"}`);
 });
 

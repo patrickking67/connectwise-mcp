@@ -4,8 +4,8 @@
 //
 // This Worker is the PSA (Manage) surface. Credentials are the integrator's
 // ConnectWise PSA keys, set as Worker secrets (CW_PSA_SITE, CW_PSA_COMPANY_ID,
-// CW_PSA_PUBLIC_KEY, CW_PSA_PRIVATE_KEY, CW_PSA_CLIENT_ID). Automate and Control
-// register only when their variables are set, and they are not set here. Every
+// CW_PSA_PUBLIC_KEY, CW_PSA_PRIVATE_KEY, CW_PSA_CLIENT_ID). Automate registers
+// only when its variables are set, and they are not set here. Every
 // caller Access admits shares the PSA member; what differs per caller is the
 // tool tier.
 //

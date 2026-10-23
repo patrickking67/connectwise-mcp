@@ -31,7 +31,6 @@ const FULL_CONFIG: AppConfig = {
     password: "p",
     clientId: "guid",
   },
-  screenconnect: { baseUrl: "https://x.screenconnect.com", username: "u", password: "p" },
 };
 
 async function connectFull() {
@@ -210,7 +209,18 @@ describe("interactive surface", () => {
 });
 
 describe("views", () => {
-  const VIEWS = ["cw_get_ticket", "cw_view_board", "cw_view_company", "cw_view_time", "cw_automate_view_computers", "cw_control_view_sessions"];
+  const VIEWS = [
+    "cw_get_ticket",
+    "cw_view_board",
+    "cw_view_company",
+    "cw_view_time",
+    "cw_view_project",
+    "cw_view_schedule",
+    "cw_automate_view_fleet",
+    "cw_automate_view_computers",
+    "cw_automate_view_computer",
+    "cw_automate_view_client",
+  ];
 
   it("registers every view as a read tool with a ui:// resource under both keys", async () => {
     const client = await connectFull();
@@ -252,7 +262,7 @@ describe("views", () => {
 
     expect(names).toContain("cw_view_board");
     expect(names).not.toContain("cw_automate_view_computers");
-    expect(names).not.toContain("cw_control_view_sessions");
+    expect(names).not.toContain("cw_automate_view_fleet");
   });
 });
 
@@ -265,11 +275,11 @@ describe("cw_status_server", () => {
     return client;
   }
 
-  it("is the one tool a server with nothing configured still has", async () => {
+  it("is, with cw_status_gate, all a server with nothing configured still has", async () => {
     const client = await connectWith({ port: 8080 }, {});
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name)).toEqual(["cw_status_server"]);
-    expect(tools[0].annotations?.readOnlyHint).toBe(true);
+    expect(tools.map((tool) => tool.name)).toEqual(["cw_status_server", "cw_status_gate"]);
+    expect(tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
   });
 
   it("names the missing variables and their Settings > Extensions fields", async () => {
@@ -303,7 +313,7 @@ describe("cw_status_server", () => {
       tools: number;
     };
     expect(status.ok).toBe(true);
-    expect(status.productsConfigured).toBe(3);
+    expect(status.productsConfigured).toBe(2);
     expect(status.tools).toBe(TOOL_CATALOG.length);
   });
 });

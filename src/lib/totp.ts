@@ -4,9 +4,8 @@ import { createHmac } from "node:crypto";
  * RFC 6238 TOTP, in the one shape this server needs: a shared secret typed into
  * an authenticator, turned into the six digits a login form is asking for.
  *
- * Both ConnectWise Automate and ConnectWise Control can require two-factor on
- * the account an integration logs in as, and neither offers a headless way past
- * it. The clean answer is a dedicated API service account exempt from 2FA; where
+ * ConnectWise Automate can require two-factor on the account an integration
+ * logs in as, and offers no headless way past it. The clean answer is a dedicated API service account exempt from 2FA; where
  * the account has to keep 2FA, the operator gives this server the same seed they
  * enrolled in their authenticator and it generates the code per login.
  *

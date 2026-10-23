@@ -59,7 +59,7 @@ npx wrangler secret put CW_PSA_PRIVATE_KEY
 npx wrangler secret bulk /path/to/secrets.json
 ```
 
-Secrets this Worker reads: `CW_PSA_SITE`, `CW_PSA_COMPANY_ID`, `CW_PSA_PUBLIC_KEY`, `CW_PSA_PRIVATE_KEY`, `CW_PSA_CLIENT_ID` (PSA only; Automate and Control stay unconfigured on this Worker).
+Secrets this Worker reads: `CW_PSA_SITE`, `CW_PSA_COMPANY_ID`, `CW_PSA_PUBLIC_KEY`, `CW_PSA_PRIVATE_KEY`, `CW_PSA_CLIENT_ID` (PSA only; Automate stays unconfigured on this Worker).
 
 ## Put it behind Access (once per Worker)
 

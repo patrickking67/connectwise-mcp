@@ -16,17 +16,24 @@ export interface AutomateConfig {
   totpSecret?: string;
 }
 
-export interface ScreenConnectConfig {
-  baseUrl: string;
-  username: string;
-  password: string;
-  /** Optional TOTP seed, for an account that keeps two-factor enabled. */
-  totpSecret?: string;
-}
-
 export interface EntraConfig {
   tenantId: string;
   clientId: string;
+}
+
+/** The products whose write tools sit behind the write gate. */
+export type GateProduct = "psa" | "automate";
+
+/**
+ * The operator's standing decision about writes, per product. Both default to
+ * false: a server starts read-only and the disruptive tier needs a second,
+ * separate switch. See src/tools/gate.ts.
+ */
+export interface WriteGate {
+  /** <PREFIX>_MODE=write (or true): write tools may run. */
+  write: boolean;
+  /** <PREFIX>_ALLOW_DESTRUCTIVE=true: the disruptive tier may run too. */
+  destructive: boolean;
 }
 
 export interface AppConfig {
@@ -35,7 +42,23 @@ export interface AppConfig {
   entra?: EntraConfig;
   psa?: PsaConfig;
   automate?: AutomateConfig;
-  screenconnect?: ScreenConnectConfig;
+  /** Write gate per product. Missing means read mode — fail closed. */
+  gates?: Partial<Record<GateProduct, WriteGate>>;
+}
+
+/** The env var prefix each product's gate variables carry. */
+export const GATE_PREFIX: Record<GateProduct, string> = {
+  psa: "CW_PSA",
+  automate: "CW_AUTOMATE",
+};
+
+/** Read one product's gate from the environment. */
+export function gateFromEnv(rawEnv: NodeJS.ProcessEnv, product: GateProduct): WriteGate {
+  const env = withoutPlaceholders(rawEnv);
+  const prefix = GATE_PREFIX[product];
+  const mode = (env[`${prefix}_MODE`] ?? "").trim().toLowerCase();
+  const destructive = (env[`${prefix}_ALLOW_DESTRUCTIVE`] ?? "").trim().toLowerCase();
+  return { write: mode === "write" || mode === "true", destructive: destructive === "true" };
 }
 
 /**
@@ -76,19 +99,18 @@ export interface ProductVariable {
   field: string;
 }
 
-export type ProductKey = "psa" | "automate" | "screenconnect";
+export type ProductKey = "psa" | "automate";
 
 export const PRODUCT_LABEL: Record<ProductKey, string> = {
   psa: "ConnectWise PSA (Manage)",
   automate: "ConnectWise Automate",
-  screenconnect: "ConnectWise Control (ScreenConnect)",
 };
 
 /**
- * The REQUIRED variables per product. The optional two-factor seeds
- * (CW_AUTOMATE_TOTP_SECRET, CW_SCREENCONNECT_TOTP_SECRET) are deliberately not
- * here: a product without one is configured, just unable to pass a 2FA prompt,
- * and the client says so when it meets one.
+ * The REQUIRED variables per product. The optional two-factor seed
+ * (CW_AUTOMATE_TOTP_SECRET) and the write-gate switches (CW_*_MODE,
+ * CW_*_ALLOW_DESTRUCTIVE) are deliberately not here: a product without them is
+ * configured, just read-only or unable to pass a 2FA prompt.
  */
 export const PRODUCT_VARIABLES: Record<ProductKey, ProductVariable[]> = {
   psa: [
@@ -103,11 +125,6 @@ export const PRODUCT_VARIABLES: Record<ProductKey, ProductVariable[]> = {
     { env: "CW_AUTOMATE_USERNAME", field: "Automate username" },
     { env: "CW_AUTOMATE_PASSWORD", field: "Automate password" },
     { env: "CW_AUTOMATE_CLIENT_ID", field: "Automate clientId" },
-  ],
-  screenconnect: [
-    { env: "CW_SCREENCONNECT_URL", field: "Control (ScreenConnect) URL" },
-    { env: "CW_SCREENCONNECT_USERNAME", field: "Control username" },
-    { env: "CW_SCREENCONNECT_PASSWORD", field: "Control password" },
   ],
 };
 
@@ -197,15 +214,7 @@ export function loadConfig(rawEnv: NodeJS.ProcessEnv = process.env): AppConfig {
     };
   }
 
-  const sc = productValues(env, "screenconnect");
-  if (sc) {
-    config.screenconnect = {
-      baseUrl: sc.CW_SCREENCONNECT_URL.replace(/\/+$/, ""),
-      username: sc.CW_SCREENCONNECT_USERNAME,
-      password: sc.CW_SCREENCONNECT_PASSWORD,
-      totpSecret: env.CW_SCREENCONNECT_TOTP_SECRET?.trim() || undefined,
-    };
-  }
 
+  config.gates = { psa: gateFromEnv(env, "psa"), automate: gateFromEnv(env, "automate") };
   return config;
 }
